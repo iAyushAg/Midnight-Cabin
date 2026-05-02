@@ -1,5 +1,5 @@
-import os
 import json
+import os
 import numpy as np
 from scipy.io.wavfile import write
 
