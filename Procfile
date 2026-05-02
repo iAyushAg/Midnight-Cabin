@@ -1,2 +1,1 @@
-worker: bash run_pipeline.sh
-
+worker: bash worker.sh
