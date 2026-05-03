@@ -32,7 +32,11 @@ SEARCH_TERMS = {
     "ocean_waves": ["calm ocean waves", "ocean waves ambience", "gentle waves loop"],
 }
 
-ALLOWED_LICENSES = {"Creative Commons 0"}
+ALLOWED_LICENSES = {
+    "Creative Commons 0",
+    "Attribution",
+    "Attribution NonCommercial"
+}
 
 
 def load_json(path, fallback):
@@ -94,11 +98,11 @@ def score_sound(sound):
 
 
 def search_sounds(category):
-    query = random.choice(SEARCH_TERMS.get(category, [category]))
+    query = f"{category} ambience loop"
 
     params = {
         "query": query,
-        "filter": f'license:"Creative Commons 0" duration:[{MIN_DURATION} TO {MAX_DURATION}]',
+        "filter": f'duration:[30 TO {MAX_DURATION}]',
         "fields": "id,name,username,license,previews,duration,url,avg_rating,num_ratings,num_downloads",
         "sort": "rating_desc",
         "page_size": 20,
