@@ -5,7 +5,7 @@ import numpy as np
 from scipy.io.wavfile import write, read
 
 SAMPLE_RATE = 44100
-DURATION = 10 * 60  # 10 min source audio; FFmpeg can loop this into longer video
+DURATION = 2 * 60  # 10 min source audio; FFmpeg can loop this into longer video
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AUDIO_DIR = os.path.join(BASE_DIR, "audio")

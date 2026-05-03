@@ -27,14 +27,14 @@ mkdir -p output
 
 echo "Generating video..."
 
-ffmpeg -y -loop 1 -i video/bg.jpg -i audio/brown_noise.wav \
--vf "scale=2200:-1,zoompan=z='min(zoom+0.00015,1.08)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=14400:s=1920x1080:fps=24,format=yuv420p" \
+ffmpeg -y -loop 1 -i video/bg.jpg -stream_loop 4 -i audio/brown_noise.wav \
+-t 600 \
+-vf "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,format=yuv420p" \
 -c:v libx264 -preset veryfast -crf 23 \
 -c:a aac -b:a 192k \
 -ar 44100 \
 -r 24 \
 -g 48 \
--shortest \
 -movflags +faststart \
 output/video.mp4
 
