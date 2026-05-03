@@ -20,44 +20,38 @@ else:
 recent_results = history[-20:]
 
 prompt = f"""
-You are the Idea Agent for a YouTube channel called Midnight Cabin.
+You are an expert YouTube growth strategist for a sleep/ambient channel.
 
-The channel creates long sleep, relaxation, and focus soundscape videos.
+Your goal is to generate a HIGH-CTR, SEO-OPTIMIZED video idea.
 
 Available sound categories:
-- rain
-- river
-- thunder
-- fireplace
-- ocean_waves
-- soft_wind
-- night_forest
-- brown_noise
+rain, river, thunder, fireplace, ocean_waves, soft_wind, night_forest, brown_noise
 
-Past video performance:
+Past performance:
 {json.dumps(recent_results, indent=2)}
 
-Your job:
-Generate ONE high-quality, unique video idea.
+Rules for title:
+- Must include strong search keywords
+- Must clearly state purpose (sleep, focus, study)
+- Include duration like "10 Hours"
+- Must feel calm but clickable
+- Avoid vague titles
+- Avoid repetition
 
-Guidelines:
-- Combine 2–3 sound layers that work well together.
-- Prefer calm, relaxing, dark, cozy themes.
-- Avoid repetition of past titles.
-- Avoid overly complex or chaotic combinations.
-- Think like a top YouTube ambient channel.
-- Use past performance to make better choices.
-- If there is not enough performance data yet, create a strong sleep/focus idea.
+High-performing keywords:
+- rain sounds for sleep
+- rain sounds black screen
+- brown noise for focus
+- sleep sounds no ads
+- deep sleep sounds
+- study sounds
 
-Return ONLY valid JSON.
-Do NOT include markdown.
-Do NOT include explanations.
+Return ONLY JSON:
 
-Structure:
 {{
   "theme": "...",
   "title": "...",
-  "sound_layers": ["brown_noise", "..."],
+  "sound_layers": ["..."],
   "visual": "...",
   "duration_minutes": 10,
   "audio_strategy": {{
