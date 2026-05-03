@@ -1,5 +1,7 @@
 import os
 import json
+from datetime import datetime
+
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -13,6 +15,7 @@ SCOPES = [
 
 TOKEN_FILE = "token.json"
 CLIENT_SECRET_FILE = "client_secret.json"
+HISTORY_FILE = "video_history.json"
 
 creds = None
 
@@ -27,7 +30,12 @@ if not creds or not creds.valid:
         CLIENT_SECRET_FILE,
         SCOPES
     )
-    creds = flow.run_local_server(port=0)
+
+    creds = flow.run_local_server(
+        port=0,
+        prompt="consent",
+        authorization_prompt_message=""
+    )
 
     with open(TOKEN_FILE, "w") as token:
         token.write(creds.to_json())
@@ -43,38 +51,49 @@ request = youtube.videos().insert(
         "snippet": {
             "title": idea["title"],
             "description": f"{idea['theme']}\n\nRelaxing soundscape for sleep, focus, studying, and deep work.",
-            "tags": ["sleep", "focus", "ambient", "brown noise", "relaxing sounds"],
+            "tags": [
+                "sleep",
+                "focus",
+                "ambient",
+                "brown noise",
+                "relaxing sounds"
+            ],
             "categoryId": "10"
         },
         "status": {
             "privacyStatus": "public"
         }
     },
-    media_body=MediaFileUpload("output/video.mp4")
+    media_body=MediaFileUpload(
+        "output/video.mp4",
+        chunksize=-1,
+        resumable=True
+    )
 )
 
-import os
-from datetime import datetime
-
-history_path = "video_history.json"
+response = request.execute()
+print("Upload response:")
+print(response)
 
 record = {
     "video_id": response["id"],
-    "title": idea["title"],
-    "theme": idea["theme"],
-    "sound_layers": idea["sound_layers"],
-    "visual": idea["visual"],
+    "title": idea.get("title"),
+    "theme": idea.get("theme"),
+    "sound_layers": idea.get("sound_layers", []),
+    "visual": idea.get("visual"),
     "uploaded_at": datetime.now().isoformat(),
     "performance": {}
 }
 
-if os.path.exists(history_path):
-    with open(history_path, "r") as f:
+if os.path.exists(HISTORY_FILE):
+    with open(HISTORY_FILE, "r") as f:
         history = json.load(f)
 else:
     history = []
 
 history.append(record)
 
-with open(history_path, "w") as f:
+with open(HISTORY_FILE, "w") as f:
     json.dump(history, f, indent=2)
+
+print("Saved video to history:", response["id"])
