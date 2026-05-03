@@ -24,7 +24,6 @@ ls -la audio || echo "audio folder missing"
 
 echo "Find WAV files:"
 find . -name "*.wav" -print
-
 echo "Creating output folder..."
 mkdir -p output
 
