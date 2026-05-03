@@ -16,9 +16,11 @@ API_KEY = os.environ.get("FREESOUND_API_KEY")
 if not API_KEY:
     raise RuntimeError("Missing FREESOUND_API_KEY environment variable")
 
-HEADERS = {
-    "Authorization": f"Token {API_KEY}"
-}
+HEADERS = {"Authorization": f"Token {API_KEY}"}
+
+MIN_DURATION = 45
+MAX_DURATION = 600
+SOUNDS_PER_CATEGORY = 3
 
 SEARCH_TERMS = {
     "rain": ["soft rain ambience", "rain on window", "gentle rain loop"],
@@ -30,9 +32,7 @@ SEARCH_TERMS = {
     "ocean_waves": ["calm ocean waves", "ocean waves ambience", "gentle waves loop"],
 }
 
-ALLOWED_LICENSES = {
-    "Creative Commons 0"
-}
+ALLOWED_LICENSES = {"Creative Commons 0"}
 
 
 def load_json(path, fallback):
@@ -47,15 +47,32 @@ def save_json(path, data):
         json.dump(data, f, indent=2)
 
 
-def search_sound(category):
+def convert_to_wav(input_path, output_path):
+    command = [
+        "ffmpeg", "-y",
+        "-i", str(input_path),
+        "-ar", "44100",
+        "-ac", "2",
+        str(output_path),
+    ]
+
+    subprocess.run(
+        command,
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def search_sounds(category):
     query = random.choice(SEARCH_TERMS.get(category, [category]))
 
     params = {
         "query": query,
-        "filter": 'license:"Creative Commons 0" duration:[30 TO 600]',
+        "filter": f'license:"Creative Commons 0" duration:[{MIN_DURATION} TO {MAX_DURATION}]',
         "fields": "id,name,username,license,previews,duration,url,avg_rating,num_ratings",
         "sort": "rating_desc",
-        "page_size": 10,
+        "page_size": 15,
     }
 
     response = requests.get(
@@ -67,37 +84,16 @@ def search_sound(category):
     response.raise_for_status()
 
     results = response.json().get("results", [])
-    results = [
+
+    clean = [
         item for item in results
         if item.get("license") in ALLOWED_LICENSES
         and item.get("previews")
+        and item.get("duration", 0) >= MIN_DURATION
     ]
 
-    if not results:
-        return None
-
-    return random.choice(results[:5])
-
-
-def convert_to_wav(input_path, output_path):
-    command = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        str(input_path),
-        "-ar",
-        "44100",
-        "-ac",
-        "2",
-        str(output_path),
-    ]
-
-    subprocess.run(
-        command,
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    random.shuffle(clean)
+    return clean[:SOUNDS_PER_CATEGORY]
 
 
 def download_sound(sound, category):
@@ -150,30 +146,31 @@ def main():
         if layer in SEARCH_TERMS
     ]
 
-    needed_categories = needed_categories[:2]
+    needed_categories = needed_categories[:3]
 
     attributions = load_json(ATTRIBUTION_PATH, [])
     selected = []
 
     for category in needed_categories:
-        sound = search_sound(category)
+        sounds = search_sounds(category)
 
-        if not sound:
-            print(f"No CC0 Freesound result found for: {category}")
+        if not sounds:
+            print(f"No 45s+ CC0 Freesound result found for: {category}")
             continue
 
-        downloaded = download_sound(sound, category)
+        for sound in sounds:
+            downloaded = download_sound(sound, category)
 
-        if downloaded:
-            selected.append(downloaded)
+            if downloaded:
+                selected.append(downloaded)
 
-            if not any(
-                item.get("sound_id") == downloaded["sound_id"]
-                for item in attributions
-            ):
-                attributions.append(downloaded)
+                if not any(
+                    item.get("sound_id") == downloaded["sound_id"]
+                    for item in attributions
+                ):
+                    attributions.append(downloaded)
 
-            print(f"Downloaded {category}: {downloaded['name']}")
+                print(f"Downloaded {category}: {downloaded['name']}")
 
     save_json(ATTRIBUTION_PATH, attributions)
 

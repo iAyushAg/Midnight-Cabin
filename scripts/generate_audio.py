@@ -5,7 +5,8 @@ import numpy as np
 from scipy.io.wavfile import write, read
 
 SAMPLE_RATE = 44100
-DURATION = 2 * 60  # 10 min source audio; FFmpeg can loop this into longer video
+DURATION = 2 * 60  # source audio length; FFmpeg loops this into longer video
+MIN_SAMPLE_SECONDS = 45
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AUDIO_DIR = os.path.join(BASE_DIR, "audio")
@@ -18,8 +19,6 @@ with open(IDEA_PATH, "r") as f:
     idea = json.load(f)
 
 layers = idea.get("sound_layers", [])
-theme = idea.get("theme", "").lower()
-
 n = SAMPLE_RATE * DURATION
 t = np.linspace(0, DURATION, n, endpoint=False)
 
@@ -31,7 +30,7 @@ def normalize(x, peak=0.95):
     return x
 
 
-def soft_limiter(x, drive=1.25):
+def soft_limiter(x, drive=1.2):
     return np.tanh(x * drive) / np.tanh(drive)
 
 
@@ -44,6 +43,55 @@ def fade(audio, seconds=5):
 
     audio[:fade_len] *= curve
     audio[-fade_len:] *= curve[::-1]
+    return audio
+
+
+def crossfade_join(clips, target_len, crossfade_seconds=6):
+    if not clips:
+        return np.zeros(target_len)
+
+    crossfade_len = SAMPLE_RATE * crossfade_seconds
+    output = clips[0].copy()
+
+    for clip in clips[1:]:
+        if len(output) >= target_len:
+            break
+
+        fade_len = min(crossfade_len, len(output), len(clip))
+
+        fade_out = np.linspace(1, 0, fade_len)
+        fade_in = np.linspace(0, 1, fade_len)
+
+        blended = output[-fade_len:] * fade_out + clip[:fade_len] * fade_in
+        output = np.concatenate([output[:-fade_len], blended, clip[fade_len:]])
+
+    if len(output) < target_len:
+        repeat = int(np.ceil(target_len / len(output)))
+        output = np.tile(output, repeat)
+
+    return output[:target_len]
+
+
+def seamless_loop(audio, seconds=8):
+    fade_len = min(SAMPLE_RATE * seconds, len(audio) // 3)
+
+    if fade_len <= 0:
+        return audio
+
+    fade_in = np.linspace(0, 1, fade_len)
+    fade_out = 1 - fade_in
+
+    if audio.ndim == 2:
+        fade_in = fade_in[:, None]
+        fade_out = fade_out[:, None]
+
+    start = audio[:fade_len].copy()
+    end = audio[-fade_len:].copy()
+    blended = end * fade_out + start * fade_in
+
+    audio[:fade_len] = blended
+    audio[-fade_len:] = blended
+
     return audio
 
 
@@ -76,7 +124,7 @@ def pink_noise():
     return normalize(0.75 * low + 0.25 * high)
 
 
-def load_sample(path):
+def read_wav_mono(path):
     sr, data = read(path)
 
     if data.ndim > 1:
@@ -84,8 +132,9 @@ def load_sample(path):
 
     data = data.astype(np.float32)
 
-    if np.max(np.abs(data)) > 0:
-        data = data / np.max(np.abs(data))
+    max_amp = np.max(np.abs(data))
+    if max_amp > 0:
+        data = data / max_amp
 
     if sr != SAMPLE_RATE:
         old_indices = np.arange(len(data))
@@ -93,29 +142,70 @@ def load_sample(path):
         new_indices = np.linspace(0, len(data) - 1, new_length)
         data = np.interp(new_indices, old_indices, data)
 
-    if len(data) < n:
-        repeat = int(np.ceil(n / len(data)))
-        data = np.tile(data, repeat)
-
-    start = random.randint(0, max(0, len(data) - n))
-    return normalize(data[start:start + n])
+    return normalize(data)
 
 
-def pick_sample(category):
+def load_sample(path):
+    data = read_wav_mono(path)
+
+    if len(data) < SAMPLE_RATE * MIN_SAMPLE_SECONDS:
+        raise ValueError(f"Sample too short: {path}")
+
+    if len(data) > n:
+        start = random.randint(0, len(data) - n)
+        data = data[start:start + n]
+
+    return normalize(data)
+
+
+def pick_samples(category, max_files=4):
     folder = os.path.join(SAMPLES_DIR, category)
 
     if not os.path.exists(folder):
-        return None
+        return []
 
     files = [
-        f for f in os.listdir(folder)
-        if f.lower().endswith((".wav"))
+        os.path.join(folder, f)
+        for f in os.listdir(folder)
+        if f.lower().endswith(".wav")
     ]
 
-    if not files:
+    random.shuffle(files)
+
+    valid = []
+    for path in files:
+        try:
+            sr, data = read(path)
+            seconds = len(data) / sr
+            if seconds >= MIN_SAMPLE_SECONDS:
+                valid.append(path)
+        except Exception:
+            continue
+
+    return valid[:max_files]
+
+
+def build_sample_layer(category):
+    sample_paths = pick_samples(category, max_files=4)
+
+    if not sample_paths:
         return None
 
-    return os.path.join(folder, random.choice(files))
+    clips = []
+
+    for path in sample_paths:
+        try:
+            clip = load_sample(path)
+            clip = fade(clip, seconds=3)
+            clips.append(clip)
+        except Exception as e:
+            print(f"Skipping sample {path}: {e}")
+
+    if not clips:
+        return None
+
+    layer = crossfade_join(clips, n, crossfade_seconds=6)
+    return normalize(layer)
 
 
 def procedural_rain():
@@ -123,7 +213,6 @@ def procedural_rain():
     mid_texture = smooth_noise(80)
     droplets = np.random.normal(0, 1, n)
     droplets = np.convolve(droplets, np.ones(10) / 10, mode="same")
-
     movement = 0.85 + 0.15 * np.sin(2 * np.pi * 0.025 * t)
     return normalize((0.45 * low_body + 0.35 * mid_texture + 0.2 * droplets) * movement)
 
@@ -143,6 +232,11 @@ def procedural_wind():
 
 
 def thunder_layer():
+    thunder = build_sample_layer("thunder")
+
+    if thunder is not None:
+        return thunder
+
     thunder = np.zeros(n)
 
     for _ in range(max(1, DURATION // 60)):
@@ -156,9 +250,10 @@ def thunder_layer():
 
 
 def fireplace_layer():
-    sample_path = pick_sample("fireplace")
-    if sample_path:
-        return load_sample(sample_path)
+    fireplace = build_sample_layer("fireplace")
+
+    if fireplace is not None:
+        return fireplace
 
     warm = smooth_noise(1300) * 0.35
     crackles = np.zeros(n)
@@ -175,47 +270,41 @@ def fireplace_layer():
 
 mix = np.zeros((n, 2))
 
-# quiet base bed
 mix = add_layer(mix, brown_noise(), 0.08, delay=500, width=0.85)
 
 if "brown_noise" in layers:
-    mix = add_layer(mix, brown_noise(), 0.35, delay=450, width=0.85)
+    mix = add_layer(mix, brown_noise(), 0.30, delay=450, width=0.85)
 
 if "pink_noise" in layers:
-    mix = add_layer(mix, pink_noise(), 0.30, delay=380, width=0.88)
+    mix = add_layer(mix, pink_noise(), 0.28, delay=380, width=0.88)
 
 if "rain" in layers:
-    sample_path = pick_sample("rain")
-    rain = load_sample(sample_path) if sample_path else procedural_rain()
-    mix = add_layer(mix, rain, 0.65, delay=220, width=0.95)
-
-if "ocean_waves" in layers:
-    sample_path = pick_sample("ocean")
-    ocean = load_sample(sample_path) if sample_path else procedural_ocean()
-    mix = add_layer(mix, ocean, 0.65, delay=700, width=0.9)
-
-if "soft_wind" in layers or "wind" in layers:
-    sample_path = pick_sample("wind")
-    wind = load_sample(sample_path) if sample_path else procedural_wind()
-    mix = add_layer(mix, wind, 0.28, delay=900, width=0.82)
-
-if "soft_thunder" in layers or "thunder" in layers:
-    sample_path = pick_sample("thunder")
-    thunder = load_sample(sample_path) if sample_path else thunder_layer()
-    mix = add_layer(mix, thunder, 0.16, delay=1100, width=0.75)
-
-if "fireplace" in layers:
-    mix = add_layer(mix, fireplace_layer(), 0.45, delay=150, width=0.96)
+    rain = build_sample_layer("rain") or procedural_rain()
+    mix = add_layer(mix, rain, 0.62, delay=220, width=0.95)
 
 if "river" in layers:
-    sample_path = pick_sample("river")
-    river = load_sample(sample_path) if sample_path else procedural_rain()
-    mix = add_layer(mix, river, 0.55, delay=500, width=0.9)
+    river = build_sample_layer("river") or procedural_rain()
+    mix = add_layer(mix, river, 0.52, delay=500, width=0.9)
 
-# mastering
+if "ocean_waves" in layers:
+    ocean = build_sample_layer("ocean") or procedural_ocean()
+    mix = add_layer(mix, ocean, 0.62, delay=700, width=0.9)
+
+if "soft_wind" in layers or "wind" in layers:
+    wind = build_sample_layer("wind") or procedural_wind()
+    mix = add_layer(mix, wind, 0.25, delay=900, width=0.82)
+
+if "soft_thunder" in layers or "thunder" in layers:
+    thunder = thunder_layer()
+    mix = add_layer(mix, thunder, 0.14, delay=1100, width=0.75)
+
+if "fireplace" in layers:
+    mix = add_layer(mix, fireplace_layer(), 0.42, delay=150, width=0.96)
+
 mix = normalize(mix, peak=0.85)
 mix = soft_limiter(mix, drive=1.2)
-mix = fade(mix, seconds=5)
+mix = seamless_loop(mix, seconds=8)
+mix = fade(mix, seconds=4)
 
 file_path = os.path.join(AUDIO_DIR, "brown_noise.wav")
 write(file_path, SAMPLE_RATE, mix.astype(np.float32))
