@@ -11,7 +11,16 @@ IDEA_PATH = BASE_DIR / "current_idea.json"
 CACHE_DIR = BASE_DIR / "audio_samples"
 ATTRIBUTION_PATH = BASE_DIR / "audio_attributions.json"
 
-API_KEY = os.environ.get("FREESOUND_API_KEY")
+API_KEY = "xmhB1xYL0d9Y5SLuN393zxVyP13vWuKanDMavIiu"
+
+test_response = requests.get(
+    "https://freesound.org/apiv2/search/text/",
+    headers={"Authorization": f"Token {API_KEY}"},
+    params={"query": "rain", "page_size": 1},
+)
+
+print("API TEST STATUS:", test_response.status_code)
+print("API TEST RESPONSE:", test_response.text[:200])
 
 if not API_KEY:
     raise RuntimeError("Missing FREESOUND_API_KEY environment variable")
