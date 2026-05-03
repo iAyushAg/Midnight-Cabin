@@ -98,10 +98,13 @@ text = response.output_text.strip()
 print("RAW OUTPUT:")
 print(text)
 
+# Remove markdown if present
+text = re.sub(r"```json|```", "", text).strip()
+
 match = re.search(r"\{.*\}", text, re.DOTALL)
 
 if not match:
-    raise ValueError("No JSON found in model output")
+    raise ValueError("No JSON found")
 
 idea = json.loads(match.group(0))
 idea["created_at"] = datetime.now().isoformat()
