@@ -44,7 +44,7 @@ request = youtube.videos().insert(
             "categoryId": "10"
         },
         "status": {
-            "privacyStatus": "private"
+            "privacyStatus": "public"
         }
     },
     media_body=MediaFileUpload("output/video.mp4")
