@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from openai import OpenAI
 
-client = OpenAI(api_key=os.environ["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"])
+client = OpenAI(api_key="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")
 
 AVAILABLE_AUDIO = {
     "rain": [
@@ -52,6 +52,7 @@ Rules:
 - Titles should be YouTube-friendly and under 75 characters
 - Pick ideas suitable for dark, cozy, faceless ambient videos
 """
+import re
 
 response = client.responses.create(
     model="gpt-4.1-mini",
@@ -59,7 +60,19 @@ response = client.responses.create(
 )
 
 text = response.output_text.strip()
-idea = json.loads(text)
+
+print("RAW OUTPUT:\n", text)
+
+# Extract JSON safely
+match = re.search(r"\{.*\}", text, re.DOTALL)
+
+if not match:
+    raise ValueError("No JSON found in model output")
+
+json_text = match.group(0)
+
+idea = json.loads(json_text)
+
 idea["created_at"] = datetime.now().isoformat()
 
 with open("current_idea.json", "w") as f:

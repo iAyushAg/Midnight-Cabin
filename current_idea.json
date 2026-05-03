@@ -1,11 +1,18 @@
 {
-  "theme": "Midnight cabin rain with brown noise",
-  "title": "Deep Cabin Rain & Brown Noise for Sleep and Focus",
+  "theme": "Cozy Rainy Night by the River",
+  "title": "Gentle Rain and River Sounds for Deep Sleep & Relaxation",
   "sound_layers": [
     "brown_noise",
     "rain",
-    "soft_thunder"
+    "river"
   ],
-  "visual": "dark cozy cabin window with rain at midnight",
-  "created_at": "2026-05-02T12:55:41.128375"
+  "visual": "Dark cabin window looking out to a softly flowing river under rain",
+  "duration_minutes": 60,
+  "audio_strategy": {
+    "primary_category": "rain",
+    "secondary_category": "river",
+    "mood": "calm and soothing",
+    "intensity": "low"
+  },
+  "created_at": "2026-05-03T11:55:58.674394"
 }
