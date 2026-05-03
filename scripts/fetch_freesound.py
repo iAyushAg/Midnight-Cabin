@@ -133,6 +133,8 @@ def search_sounds(category):
 
     # pick from top 5 (best but still varied)
     top = clean[:5]
+    print("QUERY:", query)
+    print("RAW RESPONSE:", response.json())
 
     return top[:SOUNDS_PER_CATEGORY]
 
