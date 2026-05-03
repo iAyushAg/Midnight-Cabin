@@ -29,12 +29,12 @@ echo "Generating video..."
 
 ffmpeg -y -loop 1 -i video/bg.jpg -stream_loop 4 -i audio/brown_noise.wav \
 -t 600 \
--vf "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,format=yuv420p" \
--c:v libx264 -preset veryfast -crf 23 \
--c:a aac -b:a 192k \
+-vf "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,format=yuv420p" \
+-c:v libx264 -preset ultrafast -crf 28 \
+-c:a aac -b:a 128k \
 -ar 44100 \
--r 24 \
--g 48 \
+-r 15 \
+-g 30 \
 -movflags +faststart \
 output/video.mp4
 
