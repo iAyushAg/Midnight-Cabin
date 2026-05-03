@@ -45,6 +45,7 @@ echo "Video created:"
 ls -lh output/
 
 echo "Uploading..."
+python3 scripts/generate_thumbnail.py
 
 python3 scripts/upload.py
 

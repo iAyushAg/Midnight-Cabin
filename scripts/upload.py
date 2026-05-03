@@ -16,6 +16,8 @@ SCOPES = [
 TOKEN_FILE = "token.json"
 CLIENT_SECRET_FILE = "client_secret.json"
 HISTORY_FILE = "video_history.json"
+VIDEO_FILE = "output/video.mp4"
+THUMBNAIL_FILE = "thumbnail.jpg"
 
 creds = None
 
@@ -45,43 +47,78 @@ youtube = build("youtube", "v3", credentials=creds)
 with open("current_idea.json", "r") as f:
     idea = json.load(f)
 
+if not os.path.exists(VIDEO_FILE):
+    raise FileNotFoundError(f"Video file not found: {VIDEO_FILE}")
+
 request = youtube.videos().insert(
     part="snippet,status",
     body={
         "snippet": {
             "title": idea["title"],
-            "description": f"{idea['theme']}\n\nRelaxing soundscape for sleep, focus, studying, and deep work.",
+            "description": (
+                f"{idea['theme']}\n\n"
+                "Relaxing soundscape for sleep, focus, studying, and deep work.\n\n"
+                "Best used for sleeping, relaxation, meditation, reading, studying, "
+                "deep work, and reducing background distractions."
+            ),
             "tags": [
-                "sleep",
-                "focus",
-                "ambient",
+                "sleep sounds",
+                "rain sounds",
+                "focus music",
                 "brown noise",
-                "relaxing sounds"
+                "ambient sounds",
+                "relaxing sounds",
+                "study sounds",
+                "deep sleep",
+                "white noise",
+                "nature sounds"
             ],
             "categoryId": "10"
         },
         "status": {
-            "privacyStatus": "public"
+            "privacyStatus": "public",
+            "selfDeclaredMadeForKids": False
         }
     },
     media_body=MediaFileUpload(
-        "output/video.mp4",
+        VIDEO_FILE,
         chunksize=-1,
         resumable=True
     )
 )
 
 response = request.execute()
+
 print("Upload response:")
 print(response)
 
+video_id = response["id"]
+
+if os.path.exists(THUMBNAIL_FILE):
+    try:
+        youtube.thumbnails().set(
+            videoId=video_id,
+            media_body=MediaFileUpload(THUMBNAIL_FILE)
+        ).execute()
+
+        print("Thumbnail uploaded")
+    except Exception as e:
+        print("Thumbnail upload failed:", e)
+else:
+    print("No thumbnail found, skipping thumbnail upload")
+
 record = {
-    "video_id": response["id"],
+    "video_id": video_id,
     "title": idea.get("title"),
     "theme": idea.get("theme"),
     "sound_layers": idea.get("sound_layers", []),
     "visual": idea.get("visual"),
+    "duration_minutes": idea.get("duration_minutes"),
+    "audio_strategy": idea.get("audio_strategy", {}),
+    "learning_reason": idea.get("learning_reason"),
     "uploaded_at": datetime.now().isoformat(),
+    "privacy_status": "public",
+    "thumbnail_uploaded": os.path.exists(THUMBNAIL_FILE),
     "performance": {}
 }
 
@@ -96,4 +133,4 @@ history.append(record)
 with open(HISTORY_FILE, "w") as f:
     json.dump(history, f, indent=2)
 
-print("Saved video to history:", response["id"])
+print("Saved video to history:", video_id)

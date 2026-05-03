@@ -48,20 +48,49 @@ def save_json(path, data):
 
 
 def convert_to_wav(input_path, output_path):
-    command = [
-        "ffmpeg", "-y",
-        "-i", str(input_path),
-        "-ar", "44100",
-        "-ac", "2",
-        str(output_path),
-    ]
-
     subprocess.run(
-        command,
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(input_path),
+            "-ar",
+            "44100",
+            "-ac",
+            "2",
+            str(output_path),
+        ],
         check=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+
+
+# ⭐ SMART SCORING FUNCTION
+def score_sound(sound):
+    rating = sound.get("avg_rating") or 0
+    ratings_count = sound.get("num_ratings") or 0
+    duration = sound.get("duration") or 0
+    downloads = sound.get("num_downloads") or 0
+
+    score = 0
+
+    # prioritize quality
+    score += rating * 10
+
+    # prioritize popularity
+    score += min(ratings_count, 100) * 0.2
+
+    # small boost for downloads if available
+    score += min(downloads, 500) * 0.01
+
+    # duration preference
+    if 60 <= duration <= 300:
+        score += 10
+    elif duration >= 45:
+        score += 5
+
+    return score
 
 
 def search_sounds(category):
@@ -70,9 +99,9 @@ def search_sounds(category):
     params = {
         "query": query,
         "filter": f'license:"Creative Commons 0" duration:[{MIN_DURATION} TO {MAX_DURATION}]',
-        "fields": "id,name,username,license,previews,duration,url,avg_rating,num_ratings",
+        "fields": "id,name,username,license,previews,duration,url,avg_rating,num_ratings,num_downloads",
         "sort": "rating_desc",
-        "page_size": 15,
+        "page_size": 20,
     }
 
     response = requests.get(
@@ -92,8 +121,16 @@ def search_sounds(category):
         and item.get("duration", 0) >= MIN_DURATION
     ]
 
-    random.shuffle(clean)
-    return clean[:SOUNDS_PER_CATEGORY]
+    if not clean:
+        return []
+
+    # sort by quality score
+    clean.sort(key=score_sound, reverse=True)
+
+    # pick from top 5 (best but still varied)
+    top = clean[:5]
+
+    return top[:SOUNDS_PER_CATEGORY]
 
 
 def download_sound(sound, category):
@@ -113,11 +150,11 @@ def download_sound(sound, category):
 
     if not wav_path.exists():
         if not mp3_path.exists():
-            audio_response = requests.get(preview_url, timeout=60)
-            audio_response.raise_for_status()
+            audio = requests.get(preview_url, timeout=60)
+            audio.raise_for_status()
 
             with open(mp3_path, "wb") as f:
-                f.write(audio_response.content)
+                f.write(audio.content)
 
         convert_to_wav(mp3_path, wav_path)
 
@@ -132,6 +169,7 @@ def download_sound(sound, category):
         "duration": sound.get("duration"),
         "avg_rating": sound.get("avg_rating"),
         "num_ratings": sound.get("num_ratings"),
+        "downloads": sound.get("num_downloads"),
     }
 
 
@@ -155,7 +193,7 @@ def main():
         sounds = search_sounds(category)
 
         if not sounds:
-            print(f"No 45s+ CC0 Freesound result found for: {category}")
+            print(f"No valid Freesound results for: {category}")
             continue
 
         for sound in sounds:
@@ -174,7 +212,7 @@ def main():
 
     save_json(ATTRIBUTION_PATH, attributions)
 
-    print("Freesound selected:")
+    print("Final selected sounds:")
     print(json.dumps(selected, indent=2))
 
 
