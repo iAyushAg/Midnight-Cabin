@@ -50,5 +50,28 @@ request = youtube.videos().insert(
     media_body=MediaFileUpload("output/video.mp4")
 )
 
-response = request.execute()
-print(response)
+import os
+from datetime import datetime
+
+history_path = "video_history.json"
+
+record = {
+    "video_id": response["id"],
+    "title": idea["title"],
+    "theme": idea["theme"],
+    "sound_layers": idea["sound_layers"],
+    "visual": idea["visual"],
+    "uploaded_at": datetime.now().isoformat(),
+    "performance": {}
+}
+
+if os.path.exists(history_path):
+    with open(history_path, "r") as f:
+        history = json.load(f)
+else:
+    history = []
+
+history.append(record)
+
+with open(history_path, "w") as f:
+    json.dump(history, f, indent=2)

@@ -12,6 +12,7 @@ ls -la scripts
 
 echo "Starting pipeline..."
 
+python3 scripts/collect_stats.py || echo "Stats collection skipped"
 python3 scripts/generate_idea.py
 python3 scripts/generate_visual.py
 python3 scripts/generate_audio.py
