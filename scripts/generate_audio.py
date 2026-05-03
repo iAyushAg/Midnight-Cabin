@@ -267,7 +267,6 @@ def fireplace_layer():
 
     return normalize(warm + 0.55 * crackles)
 
-
 mix = np.zeros((n, 2))
 
 mix = add_layer(mix, brown_noise(), 0.08, delay=500, width=0.85)
@@ -279,19 +278,27 @@ if "pink_noise" in layers:
     mix = add_layer(mix, pink_noise(), 0.28, delay=380, width=0.88)
 
 if "rain" in layers:
-    rain = build_sample_layer("rain") or procedural_rain()
+    rain = build_sample_layer("rain")
+    if rain is None:
+        rain = procedural_rain()
     mix = add_layer(mix, rain, 0.62, delay=220, width=0.95)
 
 if "river" in layers:
-    river = build_sample_layer("river") or procedural_rain()
+    river = build_sample_layer("river")
+    if river is None:
+        river = procedural_rain()
     mix = add_layer(mix, river, 0.52, delay=500, width=0.9)
 
 if "ocean_waves" in layers:
-    ocean = build_sample_layer("ocean") or procedural_ocean()
+    ocean = build_sample_layer("ocean")
+    if ocean is None:
+        ocean = procedural_ocean()
     mix = add_layer(mix, ocean, 0.62, delay=700, width=0.9)
 
 if "soft_wind" in layers or "wind" in layers:
-    wind = build_sample_layer("wind") or procedural_wind()
+    wind = build_sample_layer("wind")
+    if wind is None:
+        wind = procedural_wind()
     mix = add_layer(mix, wind, 0.25, delay=900, width=0.82)
 
 if "soft_thunder" in layers or "thunder" in layers:
@@ -299,7 +306,8 @@ if "soft_thunder" in layers or "thunder" in layers:
     mix = add_layer(mix, thunder, 0.14, delay=1100, width=0.75)
 
 if "fireplace" in layers:
-    mix = add_layer(mix, fireplace_layer(), 0.42, delay=150, width=0.96)
+    fireplace = fireplace_layer()
+    mix = add_layer(mix, fireplace, 0.42, delay=150, width=0.96)
 
 mix = normalize(mix, peak=0.85)
 mix = soft_limiter(mix, drive=1.2)
