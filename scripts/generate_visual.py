@@ -33,7 +33,7 @@ Style:
 result = client.images.generate(
     model="gpt-image-1",
     prompt=prompt,
-    size="1536x864"
+    size="1536x1024"
 )
 
 image_base64 = result.data[0].b64_json
