@@ -1,35 +1,65 @@
 import json
-import random
+import os
 from datetime import datetime
+from openai import OpenAI
 
-ideas = [
-    {
-        "theme": "Midnight cabin rain with brown noise",
-        "title": "Deep Cabin Rain & Brown Noise for Sleep and Focus",
-        "sound_layers": ["brown_noise", "rain", "soft_thunder"],
-        "visual": "dark cozy cabin window with rain at midnight"
-    },
-    {
-        "theme": "Ocean waves with deep focus noise",
-        "title": "Dark Ocean Waves with Deep Brown Noise for Focus",
-        "sound_layers": ["brown_noise", "ocean_waves"],
-        "visual": "moonlit ocean waves at night"
-    },
-    {
-        "theme": "Forest night ambience",
-        "title": "Peaceful Forest Night Ambience for Deep Sleep",
-        "sound_layers": ["pink_noise", "night_forest", "soft_wind"],
-        "visual": "quiet forest under moonlight"
-    },
-    {
-        "theme": "Fireplace and winter wind",
-        "title": "Cozy Fireplace and Winter Wind for Sleep",
-        "sound_layers": ["fireplace", "wind", "brown_noise"],
-        "visual": "warm fireplace inside snowy cabin"
-    }
-]
+client = OpenAI(api_key=os.environ["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"])
 
-idea = random.choice(ideas)
+AVAILABLE_AUDIO = {
+    "rain": [
+        "rain_heavy.wav",
+        "rain_light.wav",
+        "rain_medium.wav",
+        "rain_window_light.wav"
+    ],
+    "river": [
+        "river_thunder_medium.mp3"
+    ],
+    "thunder": [
+        "thunder_medium.wav"
+    ]
+}
+
+prompt = f"""
+You are the idea agent for a YouTube channel called Midnight Cabin.
+
+The channel creates long sleep/focus soundscape videos.
+
+Available audio categories:
+{json.dumps(AVAILABLE_AUDIO, indent=2)}
+
+Generate ONE fresh video idea.
+
+Return ONLY valid JSON with this exact structure:
+{{
+  "theme": "...",
+  "title": "...",
+  "sound_layers": ["brown_noise", "..."],
+  "visual": "...",
+  "duration_minutes": 60,
+  "audio_strategy": {{
+    "primary_category": "...",
+    "secondary_category": "...",
+    "mood": "...",
+    "intensity": "low/medium/high"
+  }}
+}}
+
+Rules:
+- Use only these sound layer names: brown_noise, rain, river, thunder, fireplace, ocean_waves, soft_wind, night_forest
+- Prefer combinations that fit sleep, focus, study, relaxation
+- Do not make scary titles
+- Titles should be YouTube-friendly and under 75 characters
+- Pick ideas suitable for dark, cozy, faceless ambient videos
+"""
+
+response = client.responses.create(
+    model="gpt-4.1-mini",
+    input=prompt
+)
+
+text = response.output_text.strip()
+idea = json.loads(text)
 idea["created_at"] = datetime.now().isoformat()
 
 with open("current_idea.json", "w") as f:

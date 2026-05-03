@@ -1,0 +1,37 @@
+{
+  "rain_light.wav": {
+    "type": "rain",
+    "intensity": "low",
+    "mood": ["sleep", "calm"]
+  },
+   "rain_medium.wav": {
+    "type": "rain",
+    "intensity": "medium",
+    "mood": ["sleep", "calm"]
+  },
+   "rain_medium_2.ogg": {
+    "type": "rain",
+    "intensity": "medium",
+    "mood": ["sleep", "calm"]
+  },
+   "rain_heavy.wav": {
+    "type": "rain",
+    "intensity": "high",
+    "mood": ["focus", "deep"]
+  },
+   "rain_window_light.wav": {
+    "type": "rain",
+    "intensity": "low",
+    "mood": ["sleep", "calm"]
+  },
+   "river_thunder_medium.wav": {
+    "type": "river",
+    "intensity": "medium",
+    "mood": ["sleep", "calm"]
+  },
+   "thunder_medium.wav": {
+    "type": "rain",
+    "intensity": "low",
+    "mood": ["deep", "focus"]
+  }
+}
