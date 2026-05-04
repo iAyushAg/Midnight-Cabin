@@ -18,7 +18,7 @@ with open(IDEA_PATH, "r") as f:
 title = idea.get("title", "").lower()
 layers = " ".join(idea.get("sound_layers", [])).lower()
 duration_minutes = idea.get("duration_minutes", 60)
-duration_label = "3 HOURS" if duration_minutes >= 180 else "1 HOUR"
+duration_label = "10 HOURS" if duration_minutes >= 600 else "8 HOURS"
 
 # ─────────────────────────────────────────────
 # THEME TEXT
@@ -116,7 +116,7 @@ def apply_gradient(img):
         value = int(255 * (1 - x / 600))
         for y in range(720):
             gradient.putpixel((x, y), value)
-    gradient = gradient.convert("RGB")
+    # Keep gradient as L mode — Image.composite() requires an L mask, not RGB
     return Image.composite(img, Image.new("RGB", img.size, (0, 0, 0)), gradient)
 
 

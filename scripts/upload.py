@@ -10,7 +10,8 @@ from google.auth.transport.requests import Request
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/youtube.readonly"
+    "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/youtube.force-ssl"
 ]
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,6 +20,23 @@ CLIENT_SECRET_FILE = os.path.join(BASE_DIR, "client_secret.json")
 HISTORY_FILE = os.path.join(BASE_DIR, "video_history.json")
 VIDEO_FILE = os.path.join(BASE_DIR, "output", "video.mp4")
 THUMBNAIL_FILE = os.path.join(BASE_DIR, "thumbnail.jpg")
+
+# ─────────────────────────────────────────────
+# PLAYLIST MAP — category → playlist ID
+# ─────────────────────────────────────────────
+PLAYLIST_MAP = {
+    "rain":         "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
+    "river":        "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
+    "ocean_waves":  "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
+    "fireplace":    "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
+    "thunder":      "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
+    "night_forest": "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
+    "soft_wind":    "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
+    "brown_noise":  "PL1C0d7IpxX4voVewbgJZoQjizPugYaM0n",  # Focus & Study
+}
+
+# Best performing video ID for end screen
+BEST_VIDEO_ID = "xRj8cDUHCxg"
 
 # ─────────────────────────────────────────────
 # AUTH
@@ -48,11 +66,17 @@ with open(os.path.join(BASE_DIR, "current_idea.json"), "r") as f:
 if not os.path.exists(VIDEO_FILE):
     raise FileNotFoundError(f"Video file not found: {VIDEO_FILE}")
 
-duration_minutes = idea.get("duration_minutes", 60)
-duration_label = "3 Hours" if duration_minutes >= 180 else "1 Hour"
+duration_minutes = idea.get("duration_minutes", 480)
+duration_label = "10 Hours" if duration_minutes >= 600 else "8 Hours"
+duration_seconds = duration_minutes * 60
+
+layers = idea.get("sound_layers", [])
+primary = idea.get("audio_strategy", {}).get("primary_category", "brown_noise")
+mood = idea.get("audio_strategy", {}).get("mood", "calm")
+theme = idea.get("theme", "")
 
 # ─────────────────────────────────────────────
-# BUILD TAGS — SEO-aware, duration-aware
+# BUILD TAGS
 # ─────────────────────────────────────────────
 base_tags = [
     "sleep sounds",
@@ -69,32 +93,27 @@ base_tags = [
 ]
 
 theme_tags = {
-    "rain": ["rain sounds", "rain for sleep", "rainy night ambience"],
-    "river": ["river sounds", "river ambience", "stream sounds"],
-    "fireplace": ["fireplace sounds", "crackling fire", "cozy fireplace"],
-    "ocean_waves": ["ocean sounds", "wave sounds", "ocean for sleep"],
-    "soft_wind": ["wind sounds", "night wind", "wind ambience"],
+    "rain":         ["rain sounds", "rain for sleep", "rainy night ambience"],
+    "river":        ["river sounds", "river ambience", "stream sounds"],
+    "fireplace":    ["fireplace sounds", "crackling fire", "cozy fireplace"],
+    "ocean_waves":  ["ocean sounds", "wave sounds", "ocean for sleep"],
+    "soft_wind":    ["wind sounds", "night wind", "wind ambience"],
     "night_forest": ["forest sounds", "forest ambience", "night forest"],
-    "brown_noise": ["brown noise", "brown noise sleep", "brown noise focus"],
+    "brown_noise":  ["brown noise", "brown noise sleep", "brown noise focus"],
 }
 
-layers = idea.get("sound_layers", [])
 extra_tags = []
 for layer in layers:
     extra_tags.extend(theme_tags.get(layer, []))
 
-all_tags = list(dict.fromkeys(base_tags + extra_tags))[:15]  # YouTube tag limit ~500 chars
+all_tags = list(dict.fromkeys(base_tags + extra_tags))[:15]
 
 # ─────────────────────────────────────────────
 # BUILD DESCRIPTION
 # ─────────────────────────────────────────────
-theme = idea.get("theme", "")
-primary = idea.get("audio_strategy", {}).get("primary_category", "").replace("_", " ")
-mood = idea.get("audio_strategy", {}).get("mood", "calm")
-
 description = f"""{theme}
 
-{duration_label} of uninterrupted {primary} sounds for sleep, relaxation, and deep focus.
+{duration_label} of uninterrupted {primary.replace('_', ' ')} sounds for sleep, relaxation, and deep focus.
 
 ✨ Perfect for:
 • Falling asleep faster
@@ -114,8 +133,9 @@ No ads. No interruptions. Just pure ambient sound.
 """
 
 # ─────────────────────────────────────────────
-# UPLOAD
+# UPLOAD VIDEO
 # ─────────────────────────────────────────────
+print("Uploading video...")
 request = youtube.videos().insert(
     part="snippet,status",
     body={
@@ -134,10 +154,9 @@ request = youtube.videos().insert(
 )
 
 response = request.execute()
-print("Upload response:")
-print(response)
-
+print("Upload response:", response)
 video_id = response["id"]
+print(f"Video uploaded: https://youtube.com/watch?v={video_id}")
 
 # ─────────────────────────────────────────────
 # THUMBNAIL
@@ -152,21 +171,121 @@ if os.path.exists(THUMBNAIL_FILE):
     except Exception as e:
         print("Thumbnail upload failed:", e)
 else:
-    print("No thumbnail found, skipping thumbnail upload")
+    print("No thumbnail found, skipping")
 
 # ─────────────────────────────────────────────
-# SAVE TO HISTORY (includes thumbnail variant for A/B)
+# PLAYLIST ASSIGNMENT
+# Auto-assigns to the right playlist based on primary category
+# Falls back to Deep Sleep Sounds if category not found
+# ─────────────────────────────────────────────
+playlist_id = PLAYLIST_MAP.get(primary, "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k")
+
+try:
+    youtube.playlistItems().insert(
+        part="snippet",
+        body={
+            "snippet": {
+                "playlistId": playlist_id,
+                "resourceId": {
+                    "kind": "youtube#video",
+                    "videoId": video_id
+                }
+            }
+        }
+    ).execute()
+    print(f"Added to playlist: {playlist_id}")
+except Exception as e:
+    print(f"Playlist assignment failed (non-fatal): {e}")
+
+# ─────────────────────────────────────────────
+# END SCREEN
+# Shows subscribe button + best video in last 20 seconds
+# Requires video duration to position correctly
+# ─────────────────────────────────────────────
+try:
+    end_screen_start_ms = (duration_seconds - 20) * 1000  # 20 seconds before end
+    end_screen_end_ms = duration_seconds * 1000
+
+    youtube.videos().update(
+        part="localizations"
+    )
+
+    # Use videoEditor endpoint for end screens
+    youtube.videos().update(
+        part="snippet",
+        body={
+            "id": video_id,
+            "snippet": {
+                "title": idea["title"],
+                "description": description,
+                "tags": all_tags,
+                "categoryId": "10"
+            }
+        }
+    ).execute()
+
+    # Add end screen elements
+    youtube.videoAbuseReportReasons()  # warm up client
+
+    end_screen_body = {
+        "videoId": video_id,
+        "elements": [
+            {
+                # Subscribe button
+                "type": "SUBSCRIBE",
+                "endscreen": {
+                    "startOffsetMs": end_screen_start_ms,
+                    "endOffsetMs": end_screen_end_ms,
+                    "left": 5,
+                    "top": 75,
+                    "width": 30
+                }
+            },
+            {
+                # Best performing video
+                "type": "VIDEO",
+                "endscreen": {
+                    "startOffsetMs": end_screen_start_ms,
+                    "endOffsetMs": end_screen_end_ms,
+                    "left": 65,
+                    "top": 55,
+                    "width": 30
+                },
+                "video": {
+                    "videoId": BEST_VIDEO_ID
+                }
+            }
+        ]
+    }
+
+    youtube.videos().update(
+        part="endscreen",
+        body={
+            "id": video_id,
+            "endscreen": end_screen_body
+        }
+    ).execute()
+
+    print(f"End screen added — subscribe button + video {BEST_VIDEO_ID}")
+
+except Exception as e:
+    print(f"End screen failed (non-fatal): {e}")
+    print("Note: End screens can be added manually in YouTube Studio if needed")
+
+# ─────────────────────────────────────────────
+# SAVE TO HISTORY
 # ─────────────────────────────────────────────
 record = {
     "video_id": video_id,
     "title": idea.get("title"),
     "theme": idea.get("theme"),
-    "sound_layers": idea.get("sound_layers", []),
+    "sound_layers": layers,
     "visual": idea.get("visual"),
-    "duration_minutes": idea.get("duration_minutes"),
+    "duration_minutes": duration_minutes,
     "audio_strategy": idea.get("audio_strategy", {}),
     "learning_reason": idea.get("learning_reason"),
-    "thumbnail_variant": idea.get("thumbnail_variant", "A"),  # for A/B tracking
+    "thumbnail_variant": idea.get("thumbnail_variant", "A"),
+    "playlist_id": playlist_id,
     "uploaded_at": datetime.now().isoformat(),
     "privacy_status": "public",
     "thumbnail_uploaded": os.path.exists(THUMBNAIL_FILE),
@@ -184,5 +303,6 @@ history.append(record)
 with open(HISTORY_FILE, "w") as f:
     json.dump(history, f, indent=2)
 
-print("Saved video to history:", video_id)
-print(f"Thumbnail variant used: {record['thumbnail_variant']}")
+print("Saved to history:", video_id)
+print(f"Thumbnail variant: {record['thumbnail_variant']}")
+print(f"Playlist: {playlist_id}")
