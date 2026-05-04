@@ -9,9 +9,10 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HISTORY_PATH = os.path.join(BASE_DIR, "video_history.json")
-IDEA_PATH = os.path.join(BASE_DIR, "current_idea.json")
-TOKEN_FILE = os.path.join(BASE_DIR, "token.json")
+PERSISTENT_DIR = os.environ.get("PERSISTENT_DIR", "/data")
+HISTORY_PATH = os.path.join(PERSISTENT_DIR, "video_history.json")
+IDEA_PATH = os.path.join(PERSISTENT_DIR, "current_idea.json")
+TOKEN_FILE = os.path.join(PERSISTENT_DIR, "token.json")
 
 client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
@@ -79,12 +80,12 @@ else:
 print("Suggested primary category:", suggested_primary)
 
 # ─────────────────────────────────────────────
-# 3. VIDEO LENGTH — alternate between 1h and 3h
-#    Use 3h if last video was 1h, else 1h
+# 3. VIDEO LENGTH — alternate between 8h and 10h
+#    Use 10h if last video was 8h, else 8h
 # ─────────────────────────────────────────────
-last_duration = history[-1].get("duration_minutes", 60) if history else 60
-next_duration_minutes = 180 if last_duration <= 60 else 60
-duration_label = "3 Hours" if next_duration_minutes == 180 else "1 Hour"
+last_duration = history[-1].get("duration_minutes", 480) if history else 480
+next_duration_minutes = 600 if last_duration <= 480 else 480
+duration_label = "10 Hours" if next_duration_minutes == 600 else "8 Hours"
 
 print(f"Next video duration: {duration_label} ({next_duration_minutes} min)")
 
@@ -220,7 +221,7 @@ JSON structure:
 
 try:
     message = client.messages.create(
-        model="claude-3-5-haiku-latest",
+        model="claude-haiku-4-5-20251001",
         max_tokens=700,
         temperature=0.8,
         messages=[{"role": "user", "content": prompt}]
@@ -245,7 +246,7 @@ except Exception as e:
         "title": f"{duration_label} {suggested_primary.replace('_', ' ').title()} for Sleep & Focus",
         "sound_layers": ["brown_noise", suggested_primary],
         "visual": f"dark cozy {suggested_primary.replace('_', ' ')} ambience, no people",
-        "duration_minutes": next_duration_minutes,
+        "duration_minutes": next_duration_minutes,  # 480 = 8h, 600 = 10h
         "audio_strategy": {
             "primary_category": suggested_primary,
             "secondary_category": "brown_noise",

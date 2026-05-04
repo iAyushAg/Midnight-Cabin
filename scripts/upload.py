@@ -15,9 +15,10 @@ SCOPES = [
 ]
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TOKEN_FILE = os.path.join(BASE_DIR, "token.json")
-CLIENT_SECRET_FILE = os.path.join(BASE_DIR, "client_secret.json")
-HISTORY_FILE = os.path.join(BASE_DIR, "video_history.json")
+PERSISTENT_DIR = os.environ.get("PERSISTENT_DIR", "/data")
+TOKEN_FILE = os.path.join(PERSISTENT_DIR, "token.json")
+CLIENT_SECRET_FILE = os.path.join(PERSISTENT_DIR, "client_secret.json")
+HISTORY_FILE = os.path.join(PERSISTENT_DIR, "video_history.json")
 VIDEO_FILE = os.path.join(BASE_DIR, "output", "video.mp4")
 THUMBNAIL_FILE = os.path.join(BASE_DIR, "thumbnail.jpg")
 

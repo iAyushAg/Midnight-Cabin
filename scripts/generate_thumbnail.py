@@ -5,12 +5,12 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-IDEA_PATH = BASE_DIR / "current_idea.json"
+IDEA_PATH = Path(os.environ.get("PERSISTENT_DIR", "/data")) / "current_idea.json"
 BG_PATH = BASE_DIR / "video" / "bg.jpg"
 THUMBNAIL_PATH = BASE_DIR / "thumbnail.jpg"
 THUMBNAIL_B_PATH = BASE_DIR / "thumbnail_b.jpg"
-HISTORY_PATH = BASE_DIR / "video_history.json"
-AB_LOG_PATH = BASE_DIR / "thumbnail_ab_log.json"
+HISTORY_PATH = Path(os.environ.get("PERSISTENT_DIR", "/data")) / "video_history.json"
+AB_LOG_PATH = Path(os.environ.get("PERSISTENT_DIR", "/data")) / "thumbnail_ab_log.json"
 
 with open(IDEA_PATH, "r") as f:
     idea = json.load(f)

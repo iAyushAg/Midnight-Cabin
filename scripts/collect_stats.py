@@ -9,10 +9,11 @@ from google.auth.transport.requests import Request
 import requests as http_requests
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PERSISTENT_DIR = os.environ.get("PERSISTENT_DIR", "/data")
 SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
-TOKEN_FILE = os.path.join(BASE_DIR, "token.json")
-HISTORY_FILE = os.path.join(BASE_DIR, "video_history.json")
-AB_LOG_PATH = os.path.join(BASE_DIR, "thumbnail_ab_log.json")
+TOKEN_FILE = os.path.join(PERSISTENT_DIR, "token.json")
+HISTORY_FILE = os.path.join(PERSISTENT_DIR, "video_history.json")
+AB_LOG_PATH = os.path.join(PERSISTENT_DIR, "thumbnail_ab_log.json")
 
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
@@ -115,7 +116,7 @@ print("Updated video stats")
 # DAILY PERFORMANCE SUMMARY
 # Only send once per day — check if already sent today
 # ─────────────────────────────────────────────
-SUMMARY_SENT_PATH = os.path.join(BASE_DIR, ".last_summary_date")
+SUMMARY_SENT_PATH = os.path.join(PERSISTENT_DIR, ".last_summary_date")
 
 today_str = datetime.now().strftime("%Y-%m-%d")
 last_sent = ""

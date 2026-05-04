@@ -50,6 +50,32 @@ ls -la scripts
 
 notify "🌙 Midnight Cabin pipeline starting..."
 
+# ─────────────────────────────────────────────────────────
+# PERSISTENT DIR SETUP
+# Copies credentials to /data on first run so they survive redeployments
+# ─────────────────────────────────────────────────────────
+PERSISTENT_DIR="${PERSISTENT_DIR:-/data}"
+mkdir -p "$PERSISTENT_DIR"
+
+# Copy credentials to persistent dir if not already there
+if [ ! -f "$PERSISTENT_DIR/token.json" ] && [ -f "token.json" ]; then
+    cp token.json "$PERSISTENT_DIR/token.json"
+    echo "Copied token.json to $PERSISTENT_DIR"
+fi
+
+if [ ! -f "$PERSISTENT_DIR/client_secret.json" ] && [ -f "client_secret.json" ]; then
+    cp client_secret.json "$PERSISTENT_DIR/client_secret.json"
+    echo "Copied client_secret.json to $PERSISTENT_DIR"
+fi
+
+if [ ! -f "$PERSISTENT_DIR/video_history.json" ]; then
+    echo "[]" > "$PERSISTENT_DIR/video_history.json"
+    echo "Initialized empty video_history.json in $PERSISTENT_DIR"
+fi
+
+echo "Persistent dir contents:"
+ls -la "$PERSISTENT_DIR"
+
 echo "Starting pipeline..."
 
 python3 scripts/collect_stats.py || echo "Stats collection skipped"
