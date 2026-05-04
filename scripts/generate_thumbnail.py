@@ -13,34 +13,31 @@ with open(IDEA_PATH, "r") as f:
 title = idea.get("title", "").lower()
 layers = " ".join(idea.get("sound_layers", [])).lower()
 
+# 🔥 Decide thumbnail text (VERY IMPORTANT)
 if "rain" in title or "rain" in layers:
     main_text = "RAIN\nSLEEP"
-    sub_text = "10 HOURS • NO ADS"
-elif "brown_noise" in layers or "brown noise" in title or "focus" in title:
+elif "brown_noise" in layers or "focus" in title:
     main_text = "DEEP\nFOCUS"
-    sub_text = "10 HOURS • NO DISTRACTIONS"
-elif "fireplace" in title or "fireplace" in layers:
+elif "fireplace" in layers:
     main_text = "COZY\nFIRE"
-    sub_text = "10 HOURS • DEEP SLEEP"
-elif "ocean" in title or "ocean" in layers:
+elif "ocean" in layers:
     main_text = "OCEAN\nCALM"
-    sub_text = "10 HOURS • SLEEP & RELAX"
-elif "river" in title or "river" in layers:
+elif "river" in layers:
     main_text = "RIVER\nSLEEP"
-    sub_text = "10 HOURS • RELAXING WATER"
-elif "wind" in title or "soft_wind" in layers:
+elif "wind" in layers:
     main_text = "SOFT\nWIND"
-    sub_text = "10 HOURS • SLEEP SOUNDS"
 else:
     main_text = "DEEP\nSLEEP"
-    sub_text = "10 HOURS • SLEEP & FOCUS"
+
+sub_text = "10 HOURS • NO ADS"
 
 if not BG_PATH.exists():
     raise FileNotFoundError("Missing video/bg.jpg")
 
+# Load base image
 img = Image.open(BG_PATH).convert("RGB")
 
-# Crop 16:9
+# 🔧 Crop to 16:9
 w, h = img.size
 target_ratio = 16 / 9
 
@@ -55,64 +52,52 @@ else:
 
 img = img.resize((1280, 720))
 
-# Cinematic look
-img = ImageEnhance.Contrast(img).enhance(1.18)
-img = ImageEnhance.Color(img).enhance(0.88)
+# 🎨 Cinematic enhancement
+img = ImageEnhance.Contrast(img).enhance(1.2)
+img = ImageEnhance.Color(img).enhance(0.9)
 img = img.filter(ImageFilter.SHARPEN)
 
-# Dark overlay
+# 🌑 Dark overlay
 overlay = Image.new("RGB", img.size, (0, 0, 0))
-img = Image.blend(img, overlay, 0.34)
+img = Image.blend(img, overlay, 0.35)
+
+# 🎭 Left gradient (for text clarity)
+gradient = Image.new("L", (1280, 720), 0)
+for x in range(600):
+    value = int(255 * (1 - x / 600))
+    for y in range(720):
+        gradient.putpixel((x, y), value)
+
+gradient = gradient.convert("RGB")
+img = Image.composite(img, Image.new("RGB", img.size, (0, 0, 0)), gradient)
 
 draw = ImageDraw.Draw(img)
 
+# 🔤 Fonts
 try:
-    font_main = ImageFont.truetype("DejaVuSans-Bold.ttf", 112)
-    font_sub = ImageFont.truetype("DejaVuSans-Bold.ttf", 42)
+    font_big = ImageFont.truetype("DejaVuSans-Bold.ttf", 110)
+    font_small = ImageFont.truetype("DejaVuSans-Bold.ttf", 40)
 except:
-    font_main = ImageFont.load_default()
-    font_sub = ImageFont.load_default()
+    font_big = ImageFont.load_default()
+    font_small = ImageFont.load_default()
 
-# Left text panel gradient
-panel = Image.new("RGBA", img.size, (0, 0, 0, 0))
-panel_draw = ImageDraw.Draw(panel)
-
-for x in range(0, 620):
-    alpha = int(190 * (1 - x / 620))
-    panel_draw.line([(x, 0), (x, 720)], fill=(0, 0, 0, alpha))
-
-img = Image.alpha_composite(img.convert("RGBA"), panel).convert("RGB")
-draw = ImageDraw.Draw(img)
-
-# Main text
-x = 58
-y = 330
+# ✍️ Draw main text
+x = 60
+y = 320
 shadow = 8
 
 for i, line in enumerate(main_text.split("\n")):
-    yy = y + i * 112
+    yy = y + i * 110
 
-    draw.text((x + shadow, yy + shadow), line, font=font_main, fill=(0, 0, 0))
-    draw.text((x, yy), line, font=font_main, fill=(255, 255, 255))
+    # shadow
+    draw.text((x + shadow, yy + shadow), line, font=font_big, fill=(0, 0, 0))
+    # main text
+    draw.text((x, yy), line, font=font_big, fill=(255, 255, 255))
 
-# Subtitle pill
-pill_x, pill_y = 58, 610
-pill_w, pill_h = 520, 58
+# 🧾 Bottom label
+draw.text((60, 620), sub_text, font=font_small, fill=(230, 230, 230))
 
-draw.rounded_rectangle(
-    [pill_x, pill_y, pill_x + pill_w, pill_y + pill_h],
-    radius=18,
-    fill=(10, 10, 10)
-)
-
-draw.text(
-    (pill_x + 24, pill_y + 9),
-    sub_text,
-    font=font_sub,
-    fill=(235, 235, 235)
-)
-
+# 💾 Save
 img.save(THUMBNAIL_PATH, "JPEG", quality=88, optimize=True)
 
-print("Generated thumbnail:", THUMBNAIL_PATH)
-print("Main text:", main_text.replace("\n", " "))
+print("Thumbnail created from bg.jpg")
