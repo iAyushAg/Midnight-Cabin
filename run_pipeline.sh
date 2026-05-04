@@ -76,14 +76,15 @@ DURATION_MINUTES=$(python3 -c "
 import json
 with open('current_idea.json') as f:
     idea = json.load(f)
-print(idea.get('duration_minutes', 60))
+print(idea.get('duration_minutes', 480))
 ")
 
 DURATION_SECONDS=$((DURATION_MINUTES * 60))
 echo "Video duration: ${DURATION_MINUTES} minutes (${DURATION_SECONDS} seconds)"
 
 # ─────────────────────────────────────────────────────────
-# RENDER VIDEO
+# RENDER VIDEO — static image, ultrafast preset, 1fps
+# No zoompan — cuts render time from 16+ hours to ~30 mins
 # ─────────────────────────────────────────────────────────
 
 echo "Creating output folder..."
@@ -94,12 +95,11 @@ ffmpeg -y \
     -loop 1 -i video/bg.jpg \
     -stream_loop -1 -i audio/brown_noise.wav \
     -t "$DURATION_SECONDS" \
-    -vf "zoompan=z='min(zoom+0.0003,1.05)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1280x720,format=yuv420p" \
-    -c:v libx264 -preset slow -crf 26 \
+    -vf "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,format=yuv420p" \
+    -c:v libx264 -preset ultrafast -tune stillimage -crf 28 \
     -c:a aac -b:a 128k \
     -ar 44100 \
-    -r 24 \
-    -g 48 \
+    -r 1 \
     -movflags +faststart \
     output/video.mp4 || fail "ffmpeg render"
 
