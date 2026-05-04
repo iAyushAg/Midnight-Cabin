@@ -10,6 +10,7 @@ from google.auth.transport.requests import Request
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PERSISTENT_DIR = os.environ.get("PERSISTENT_DIR", "/data")
+
 HISTORY_PATH = os.path.join(PERSISTENT_DIR, "video_history.json")
 IDEA_PATH = os.path.join(PERSISTENT_DIR, "current_idea.json")
 TOKEN_FILE = os.path.join(PERSISTENT_DIR, "token.json")
@@ -28,13 +29,8 @@ else:
 recent_results = history[-20:]
 
 CONTENT_BUCKETS = [
-    "rain",
-    "river",
-    "fireplace",
-    "ocean_waves",
-    "soft_wind",
-    "night_forest",
-    "brown_noise"
+    "river", "fireplace", "ocean_waves",
+    "soft_wind", "night_forest", "brown_noise", "rain"
 ]
 
 # ─────────────────────────────────────────────
@@ -62,35 +58,44 @@ if not available_buckets:
     print("All themes blacked out — resetting blackout")
     available_buckets = CONTENT_BUCKETS
 
-# Pick least-used among available
 used_primary = []
 for item in recent_results:
-    strategy = item.get("audio_strategy", {})
-    primary = strategy.get("primary_category")
+    primary = item.get("audio_strategy", {}).get("primary_category")
     if primary:
         used_primary.append(primary)
+
+import random as _random
 
 if used_primary:
     min_count = min(used_primary.count(c) for c in available_buckets)
     least_used = [c for c in available_buckets if used_primary.count(c) == min_count]
+    # Shuffle least-used so we don't always pick the same one when counts are tied
+    _random.shuffle(least_used)
     suggested_primary = least_used[0]
 else:
-    suggested_primary = available_buckets[0]
+    # No history — pick randomly so rain isn't always first
+    suggested_primary = _random.choice(available_buckets)
+
+# Hard rule — never pick the same category as the last video
+last_primary = history[-1].get("audio_strategy", {}).get("primary_category") if history else None
+if suggested_primary == last_primary and len(available_buckets) > 1:
+    remaining = [b for b in available_buckets if b != last_primary]
+    import random as _r
+    suggested_primary = _r.choice(remaining)
+    print(f"Avoided repeating last category ({last_primary}), switched to: {suggested_primary}")
 
 print("Suggested primary category:", suggested_primary)
 
 # ─────────────────────────────────────────────
 # 3. VIDEO LENGTH — alternate between 8h and 10h
-#    Use 10h if last video was 8h, else 8h
 # ─────────────────────────────────────────────
 last_duration = history[-1].get("duration_minutes", 480) if history else 480
 next_duration_minutes = 600 if last_duration <= 480 else 480
 duration_label = "10 Hours" if next_duration_minutes == 600 else "8 Hours"
-
 print(f"Next video duration: {duration_label} ({next_duration_minutes} min)")
 
 # ─────────────────────────────────────────────
-# 4. YOUTUBE TREND DATA — pull high-value search keywords
+# 4. YOUTUBE TREND DATA
 # ─────────────────────────────────────────────
 trending_keywords = []
 
@@ -107,9 +112,7 @@ try:
     seed_terms = [
         f"{suggested_primary.replace('_', ' ')} sleep",
         "ambient sleep sounds",
-        "relaxing sounds for sleep",
         "brown noise focus",
-        "nature sounds relaxation"
     ]
 
     for seed in seed_terms[:3]:
@@ -123,8 +126,7 @@ try:
         ).execute()
 
         for item in response.get("items", []):
-            title = item["snippet"]["title"]
-            trending_keywords.append(title)
+            trending_keywords.append(item["snippet"]["title"])
 
     print("Trending titles found:", len(trending_keywords))
 
@@ -132,7 +134,7 @@ except Exception as e:
     print("YouTube trend fetch failed (non-fatal):", e)
 
 # ─────────────────────────────────────────────
-# 5. CHANNEL PERFORMANCE — best/worst videos
+# 5. CHANNEL PERFORMANCE
 # ─────────────────────────────────────────────
 top_performers = []
 low_performers = []
@@ -148,7 +150,7 @@ if history:
     low_performers = [v[0] for v in scored[-3:] if v[1] > 0]
 
 # ─────────────────────────────────────────────
-# 6. BUILD PROMPT & CALL CLAUDE
+# 6. CALL CLAUDE
 # ─────────────────────────────────────────────
 prompt = f"""
 You are the Idea Agent for a YouTube channel called Midnight Cabin.
@@ -156,14 +158,7 @@ You are the Idea Agent for a YouTube channel called Midnight Cabin.
 The channel creates long sleep, relaxation, and focus soundscape videos.
 
 Available sound categories:
-- rain
-- river
-- thunder
-- fireplace
-- ocean_waves
-- soft_wind
-- night_forest
-- brown_noise
+- rain, river, thunder, fireplace, ocean_waves, soft_wind, night_forest, brown_noise
 
 === THEME BLACKOUT ===
 These primary categories were used in the last 30 days — DO NOT use them as primary:
@@ -171,18 +166,16 @@ These primary categories were used in the last 30 days — DO NOT use them as pr
 
 === VIDEO LENGTH ===
 This video must be: {duration_label}
-Include "{duration_label}" in the title (not "10 Hours").
+Include "{duration_label}" in the title (not "10 Hours" if it's 8 Hours).
 
 === YOUTUBE TRENDING TITLES (for keyword inspiration) ===
 {json.dumps(trending_keywords[:10], indent=2)}
-Use these to understand what keywords and phrasing are working right now.
-Do NOT copy titles directly — extract the SEO patterns and apply them freshly.
 
-=== TOP PERFORMING VIDEOS (themes/styles to lean into) ===
-{json.dumps([{{"title": v.get("title"), "theme": v.get("theme"), "views": v.get("performance", {{}}).get("views", 0)}} for v in top_performers], indent=2)}
+=== TOP PERFORMING VIDEOS ===
+{json.dumps([{{"title": v.get("title"), "views": v.get("performance", {{}}).get("views", 0)}} for v in top_performers], indent=2)}
 
-=== LOW PERFORMING VIDEOS (themes/styles to avoid) ===
-{json.dumps([{{"title": v.get("title"), "theme": v.get("theme"), "views": v.get("performance", {{}}).get("views", 0)}} for v in low_performers], indent=2)}
+=== LOW PERFORMING VIDEOS ===
+{json.dumps([{{"title": v.get("title"), "views": v.get("performance", {{}}).get("views", 0)}} for v in low_performers], indent=2)}
 
 === SUGGESTED PRIMARY CATEGORY ===
 {suggested_primary}
@@ -191,18 +184,13 @@ Generate ONE high-quality, unique video idea.
 
 Rules:
 - Primary category MUST be: {suggested_primary}
-- Do NOT use any blacked-out categories as primary.
-- Use 2–3 sound layers that work well together.
-- Always include brown_noise unless it conflicts with the theme.
-- Keep it calm, cozy, dark, suitable for sleep or focus.
-- Avoid scary, chaotic, dramatic, or clickbait wording.
-- Avoid repeating exact titles from history.
-- Title must be SEO-friendly, under 90 characters, and include "{duration_label}".
-- Use trending keyword patterns where they naturally fit.
+- Use 2-3 sound layers that work well together
+- Always include brown_noise unless it conflicts
+- Keep it calm, cozy, dark, suitable for sleep or focus
+- Title must be SEO-friendly, under 90 characters, include "{duration_label}"
+- Return ONLY valid JSON — no markdown, no explanation, no duplicate keys
 
-Return ONLY valid JSON. No markdown. No explanations.
-
-JSON structure:
+JSON structure (return exactly this, no extra fields outside it):
 {{
   "theme": "...",
   "title": "...",
@@ -219,6 +207,60 @@ JSON structure:
 }}
 """
 
+def safe_parse_json(text):
+    """Robustly extract and parse the first valid JSON object from text."""
+    # Remove markdown fences
+    text = re.sub(r"```json|```", "", text).strip()
+
+    # Find the outermost {} block
+    start = text.find("{")
+    if start == -1:
+        return None
+
+    # Walk to find matching closing brace
+    depth = 0
+    end = -1
+    for i, ch in enumerate(text[start:], start):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+
+    if end == -1:
+        return None
+
+    json_str = text[start:end + 1]
+
+    # Fix common Claude mistakes:
+    # 1. Remove duplicate keys by keeping last occurrence
+    # 2. Fix trailing commas before }
+    json_str = re.sub(r",\s*([}\]])", r"\1", json_str)
+
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        print(f"JSON parse error: {e}")
+        # Try removing lines with obvious syntax errors
+        lines = json_str.split("\n")
+        clean_lines = []
+        for line in lines:
+            stripped = line.strip()
+            # Skip orphaned lines that aren't valid JSON structure
+            if stripped and not stripped.startswith('"') and stripped not in ["{", "}", "[", "]", ","]:
+                if not any(stripped.startswith(c) for c in ['"', '{', '}', '[', ']']):
+                    print(f"Skipping malformed line: {line}")
+                    continue
+            clean_lines.append(line)
+        try:
+            return json.loads("\n".join(clean_lines))
+        except Exception:
+            return None
+
+idea = None
+
 try:
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -231,35 +273,39 @@ try:
     print("RAW CLAUDE OUTPUT:")
     print(text)
 
-    text = re.sub(r"```json|```", "", text).strip()
-    match = re.search(r"\{.*\}", text, re.DOTALL)
+    idea = safe_parse_json(text)
 
-    if not match:
-        raise ValueError("No JSON found in Claude output")
+    if not idea:
+        raise ValueError("Could not parse valid JSON from Claude output")
 
-    idea = json.loads(match.group(0))
+    print("Successfully parsed idea:", idea.get("title"))
 
 except Exception as e:
     print("Claude idea generation failed, using fallback:", e)
+    idea = None
+
+if not idea:
     idea = {
         "theme": f"{suggested_primary.replace('_', ' ').title()} Sleep Ambience",
         "title": f"{duration_label} {suggested_primary.replace('_', ' ').title()} for Sleep & Focus",
         "sound_layers": ["brown_noise", suggested_primary],
         "visual": f"dark cozy {suggested_primary.replace('_', ' ')} ambience, no people",
-        "duration_minutes": next_duration_minutes,  # 480 = 8h, 600 = 10h
+        "duration_minutes": next_duration_minutes,
         "audio_strategy": {
             "primary_category": suggested_primary,
             "secondary_category": "brown_noise",
             "mood": "calm",
             "intensity": "low"
         },
-        "learning_reason": "Fallback idea used because Claude API was unavailable."
+        "learning_reason": "Fallback idea — Claude API unavailable or returned unparseable JSON."
     }
 
+# ─────────────────────────────────────────────
+# 7. VALIDATE + SAVE
+# ─────────────────────────────────────────────
 idea["created_at"] = datetime.now().isoformat()
 idea["duration_minutes"] = next_duration_minutes  # enforce regardless of Claude output
 
-# Validate sound layers
 allowed_layers = {
     "rain", "river", "thunder", "fireplace",
     "ocean_waves", "soft_wind", "night_forest", "brown_noise"
@@ -272,7 +318,10 @@ if not idea["sound_layers"]:
 if "brown_noise" not in idea["sound_layers"]:
     idea["sound_layers"].insert(0, "brown_noise")
 
+os.makedirs(PERSISTENT_DIR, exist_ok=True)
+
 with open(IDEA_PATH, "w") as f:
     json.dump(idea, f, indent=2)
 
+print("\nFinal idea saved:")
 print(json.dumps(idea, indent=2))

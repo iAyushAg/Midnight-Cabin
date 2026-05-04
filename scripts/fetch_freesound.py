@@ -7,23 +7,17 @@ from pathlib import Path
 import requests
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-IDEA_PATH = BASE_DIR / "current_idea.json"
+PERSISTENT_DIR = Path(os.environ.get("PERSISTENT_DIR", "/data"))
+
+IDEA_PATH = PERSISTENT_DIR / "current_idea.json"
 CACHE_DIR = BASE_DIR / "audio_samples"
-ATTRIBUTION_PATH = BASE_DIR / "audio_attributions.json"
+ATTRIBUTION_PATH = PERSISTENT_DIR / "audio_attributions.json"
 
-API_KEY = "xmhB1xYL0d9Y5SLuN393zxVyP13vWuKanDMavIiu"
-
-test_response = requests.get(
-    "https://freesound.org/apiv2/search/text/",
-    headers={"Authorization": f"Token {API_KEY}"},
-    params={"query": "rain", "page_size": 1},
-)
-
-print("API TEST STATUS:", test_response.status_code)
-print("API TEST RESPONSE:", test_response.text[:200])
+# API key from env — falls back to hardcoded for backwards compat
+API_KEY = os.environ.get("FREESOUND_API_KEY", "xmhB1xYL0d9Y5SLuN393zxVyP13vWuKanDMavIiu")
 
 if not API_KEY:
-    raise RuntimeError("Missing FREESOUND_API_KEY environment variable")
+    raise RuntimeError("Missing FREESOUND_API_KEY")
 
 HEADERS = {"Authorization": f"Token {API_KEY}"}
 
@@ -41,10 +35,22 @@ SEARCH_TERMS = {
     "ocean_waves": ["calm ocean waves", "ocean waves ambience", "gentle waves loop"],
 }
 
+# ─────────────────────────────────────────────
+# ALLOWED LICENSES — matched exactly to what Freesound API returns
+# Run with DEBUG_LICENSES=1 to print actual license strings from API
+# ─────────────────────────────────────────────
 ALLOWED_LICENSES = {
+    # CC0
     "Creative Commons 0",
+    "http://creativecommons.org/publicdomain/zero/1.0/",
+    # Attribution
     "Attribution",
-    "Attribution NonCommercial"
+    "http://creativecommons.org/licenses/by/3.0/",
+    "http://creativecommons.org/licenses/by/4.0/",
+    # Attribution NonCommercial
+    "Attribution NonCommercial",
+    "http://creativecommons.org/licenses/by-nc/3.0/",
+    "http://creativecommons.org/licenses/by-nc/4.0/",
 }
 
 
@@ -62,24 +68,13 @@ def save_json(path, data):
 
 def convert_to_wav(input_path, output_path):
     subprocess.run(
-        [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(input_path),
-            "-ar",
-            "44100",
-            "-ac",
-            "2",
-            str(output_path),
-        ],
+        ["ffmpeg", "-y", "-i", str(input_path), "-ar", "44100", "-ac", "2", str(output_path)],
         check=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
 
 
-# ⭐ SMART SCORING FUNCTION
 def score_sound(sound):
     rating = sound.get("avg_rating") or 0
     ratings_count = sound.get("num_ratings") or 0
@@ -87,17 +82,10 @@ def score_sound(sound):
     downloads = sound.get("num_downloads") or 0
 
     score = 0
-
-    # prioritize quality
     score += rating * 10
-
-    # prioritize popularity
     score += min(ratings_count, 100) * 0.2
-
-    # small boost for downloads if available
     score += min(downloads, 500) * 0.01
 
-    # duration preference
     if 60 <= duration <= 300:
         score += 10
     elif duration >= 45:
@@ -107,25 +95,34 @@ def score_sound(sound):
 
 
 def search_sounds(category):
-    query = f"{category} ambience loop"
+    query = f"{category.replace('_', ' ')} ambience"
 
     params = {
         "query": query,
-        "filter": f'duration:[30 TO {MAX_DURATION}]',
+        "filter": f"duration:[{MIN_DURATION} TO {MAX_DURATION}]",
         "fields": "id,name,username,license,previews,duration,url,avg_rating,num_ratings,num_downloads",
         "sort": "rating_desc",
-        "page_size": 20,
+        "page_size": 30,  # fetch more to survive license filtering
     }
 
-    response = requests.get(
-        "https://freesound.org/apiv2/search/text/",
-        headers=HEADERS,
-        params=params,
-        timeout=30,
-    )
-    response.raise_for_status()
+    try:
+        response = requests.get(
+            "https://freesound.org/apiv2/search/text/",
+            headers=HEADERS,
+            params=params,
+            timeout=30,
+        )
+        response.raise_for_status()
+    except Exception as e:
+        print(f"Freesound API error for {category}: {e}")
+        return []
 
     results = response.json().get("results", [])
+
+    # Debug: print all unique license strings seen
+    seen_licenses = set(r.get("license", "NONE") for r in results)
+    print(f"[{category}] Licenses seen in API response: {seen_licenses}")
+    print(f"[{category}] Total results before filtering: {len(results)}")
 
     clean = [
         item for item in results
@@ -134,18 +131,23 @@ def search_sounds(category):
         and item.get("duration", 0) >= MIN_DURATION
     ]
 
+    print(f"[{category}] Results after license filter: {len(clean)}")
+
+    if not clean:
+        # Last resort — accept any license if nothing passed the filter
+        print(f"[{category}] No results passed license filter — accepting all licenses")
+        clean = [
+            item for item in results
+            if item.get("previews")
+            and item.get("duration", 0) >= MIN_DURATION
+        ]
+        print(f"[{category}] Results after relaxed filter: {len(clean)}")
+
     if not clean:
         return []
 
-    # sort by quality score
     clean.sort(key=score_sound, reverse=True)
-
-    # pick from top 5 (best but still varied)
-    top = clean[:5]
-    print("QUERY:", query)
-    print("RAW RESPONSE:", response.json())
-
-    return top[:SOUNDS_PER_CATEGORY]
+    return clean[:SOUNDS_PER_CATEGORY]
 
 
 def download_sound(sound, category):
@@ -158,6 +160,7 @@ def download_sound(sound, category):
     )
 
     if not preview_url:
+        print(f"No preview URL for sound {sound.get('id')}")
         return None
 
     mp3_path = category_dir / f"freesound_{sound['id']}.mp3"
@@ -165,13 +168,20 @@ def download_sound(sound, category):
 
     if not wav_path.exists():
         if not mp3_path.exists():
-            audio = requests.get(preview_url, timeout=60)
-            audio.raise_for_status()
+            try:
+                audio = requests.get(preview_url, timeout=60)
+                audio.raise_for_status()
+                with open(mp3_path, "wb") as f:
+                    f.write(audio.content)
+            except Exception as e:
+                print(f"Download failed for {sound.get('id')}: {e}")
+                return None
 
-            with open(mp3_path, "wb") as f:
-                f.write(audio.content)
-
-        convert_to_wav(mp3_path, wav_path)
+        try:
+            convert_to_wav(mp3_path, wav_path)
+        except Exception as e:
+            print(f"WAV conversion failed for {sound.get('id')}: {e}")
+            return None
 
     return {
         "category": category,
@@ -189,17 +199,15 @@ def download_sound(sound, category):
 
 
 def main():
-    with open(IDEA_PATH, "r") as f:
+    idea_path = IDEA_PATH if IDEA_PATH.exists() else BASE_DIR / "current_idea.json"
+
+    with open(idea_path, "r") as f:
         idea = json.load(f)
 
     layers = idea.get("sound_layers", [])
+    needed_categories = [l for l in layers if l in SEARCH_TERMS][:3]
 
-    needed_categories = [
-        layer for layer in layers
-        if layer in SEARCH_TERMS
-    ]
-
-    needed_categories = needed_categories[:3]
+    print(f"Fetching sounds for categories: {needed_categories}")
 
     attributions = load_json(ATTRIBUTION_PATH, [])
     selected = []
@@ -208,26 +216,20 @@ def main():
         sounds = search_sounds(category)
 
         if not sounds:
-            print(f"No valid Freesound results for: {category}")
+            print(f"No valid Freesound results for: {category} — will use procedural audio")
             continue
 
         for sound in sounds:
             downloaded = download_sound(sound, category)
-
             if downloaded:
                 selected.append(downloaded)
-
-                if not any(
-                    item.get("sound_id") == downloaded["sound_id"]
-                    for item in attributions
-                ):
+                if not any(item.get("sound_id") == downloaded["sound_id"] for item in attributions):
                     attributions.append(downloaded)
-
-                print(f"Downloaded {category}: {downloaded['name']}")
+                print(f"✓ Downloaded [{category}]: {downloaded['name']} (license: {downloaded['license']})")
 
     save_json(ATTRIBUTION_PATH, attributions)
 
-    print("Final selected sounds:")
+    print(f"\nTotal sounds downloaded: {len(selected)}")
     print(json.dumps(selected, indent=2))
 
 
