@@ -1,91 +1,50 @@
-import os
 import json
-import base64
 from pathlib import Path
-
-from openai import OpenAI
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 IDEA_PATH = BASE_DIR / "current_idea.json"
+BG_PATH = BASE_DIR / "video" / "bg.jpg"
 THUMBNAIL_PATH = BASE_DIR / "thumbnail.jpg"
-RAW_PATH = BASE_DIR / "thumbnail_raw.png"
-
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 with open(IDEA_PATH, "r") as f:
     idea = json.load(f)
 
-title = idea.get("title", "")
-theme = idea.get("theme", "")
-visual = idea.get("visual", "")
-layers = idea.get("sound_layers", [])
+title = idea.get("title", "").lower()
+layers = " ".join(idea.get("sound_layers", [])).lower()
 
-title_lower = title.lower()
-layers_text = " ".join(layers).lower()
-
-if "rain" in title_lower or "rain" in layers_text:
-    thumbnail_text = "RAIN SLEEP"
-    visual_style = "dark rainy cabin window, warm yellow light inside, cold blue rain outside"
-elif "brown noise" in title_lower or "focus" in title_lower:
-    thumbnail_text = "DEEP FOCUS"
-    visual_style = "dark minimal cozy desk room, soft warm lamp, calm deep focus atmosphere"
-elif "black screen" in title_lower:
-    thumbnail_text = "FALL ASLEEP"
-    visual_style = "almost black background, subtle soft glow, minimal calm sleep ambience"
-elif "fireplace" in title_lower or "fireplace" in layers_text:
-    thumbnail_text = "COZY SLEEP"
-    visual_style = "warm fireplace in dark cozy cabin, soft orange glow, peaceful winter night"
-elif "ocean" in title_lower or "ocean" in layers_text:
-    thumbnail_text = "OCEAN CALM"
-    visual_style = "dark ocean waves at night, moonlight reflection, calm cinematic atmosphere"
+if "rain" in title or "rain" in layers:
+    main_text = "RAIN\nSLEEP"
+    sub_text = "10 HOURS • NO ADS"
+elif "brown_noise" in layers or "brown noise" in title or "focus" in title:
+    main_text = "DEEP\nFOCUS"
+    sub_text = "10 HOURS • NO DISTRACTIONS"
+elif "fireplace" in title or "fireplace" in layers:
+    main_text = "COZY\nFIRE"
+    sub_text = "10 HOURS • DEEP SLEEP"
+elif "ocean" in title or "ocean" in layers:
+    main_text = "OCEAN\nCALM"
+    sub_text = "10 HOURS • SLEEP & RELAX"
+elif "river" in title or "river" in layers:
+    main_text = "RIVER\nSLEEP"
+    sub_text = "10 HOURS • RELAXING WATER"
+elif "wind" in title or "soft_wind" in layers:
+    main_text = "SOFT\nWIND"
+    sub_text = "10 HOURS • SLEEP SOUNDS"
 else:
-    thumbnail_text = "DEEP SLEEP"
-    visual_style = "dark cozy midnight cabin, soft warm glow, calm sleep ambience"
+    main_text = "DEEP\nSLEEP"
+    sub_text = "10 HOURS • SLEEP & FOCUS"
 
-prompt = f"""
-Create a high-click YouTube thumbnail background for a sleep/focus soundscape channel.
+if not BG_PATH.exists():
+    raise FileNotFoundError("Missing video/bg.jpg")
 
-Video theme: {theme}
-Video visual: {visual}
-Required style: {visual_style}
+img = Image.open(BG_PATH).convert("RGB")
 
-Thumbnail requirements:
-- 16:9 YouTube thumbnail composition
-- dark cinematic cozy ambience
-- strong single focal point on the right side
-- empty/darker space on the left side for large text
-- warm glow, moonlight, or window light contrast
-- minimal clutter
-- no people
-- no faces
-- no logos
-- no text
-- no watermark
-- emotional feeling: safe, cozy, sleepy, quiet, nighttime
-- high contrast, professional YouTube thumbnail look
-"""
-
-result = client.images.generate(
-    model="gpt-image-1",
-    prompt=prompt,
-    size="1536x1024"
-)
-
-image_base64 = result.data[0].b64_json
-image_bytes = base64.b64decode(image_base64)
-
-with open(RAW_PATH, "wb") as f:
-    f.write(image_bytes)
-
-img = Image.open(RAW_PATH).convert("RGB")
-
-# Crop to 16:9
+# Crop 16:9
 w, h = img.size
 target_ratio = 16 / 9
-current_ratio = w / h
 
-if current_ratio > target_ratio:
+if w / h > target_ratio:
     new_w = int(h * target_ratio)
     left = (w - new_w) // 2
     img = img.crop((left, 0, left + new_w, h))
@@ -96,84 +55,64 @@ else:
 
 img = img.resize((1280, 720))
 
-# Slight cinematic sharpen/contrast feel
+# Cinematic look
+img = ImageEnhance.Contrast(img).enhance(1.18)
+img = ImageEnhance.Color(img).enhance(0.88)
 img = img.filter(ImageFilter.SHARPEN)
 
-# Dark overlay for text readability
+# Dark overlay
 overlay = Image.new("RGB", img.size, (0, 0, 0))
-img = Image.blend(img, overlay, 0.28)
+img = Image.blend(img, overlay, 0.34)
 
 draw = ImageDraw.Draw(img)
 
 try:
-    font_big = ImageFont.truetype("DejaVuSans-Bold.ttf", 92)
-    font_small = ImageFont.truetype("DejaVuSans-Bold.ttf", 42)
+    font_main = ImageFont.truetype("DejaVuSans-Bold.ttf", 112)
+    font_sub = ImageFont.truetype("DejaVuSans-Bold.ttf", 42)
 except:
-    font_big = ImageFont.load_default()
-    font_small = ImageFont.load_default()
+    font_main = ImageFont.load_default()
+    font_sub = ImageFont.load_default()
 
-# Wrap big text into two lines if needed
-words = thumbnail_text.split()
-if len(words) >= 2:
-    line1 = words[0]
-    line2 = " ".join(words[1:])
-else:
-    line1 = thumbnail_text
-    line2 = ""
+# Left text panel gradient
+panel = Image.new("RGBA", img.size, (0, 0, 0, 0))
+panel_draw = ImageDraw.Draw(panel)
 
+for x in range(0, 620):
+    alpha = int(190 * (1 - x / 620))
+    panel_draw.line([(x, 0), (x, 720)], fill=(0, 0, 0, alpha))
+
+img = Image.alpha_composite(img.convert("RGBA"), panel).convert("RGB")
+draw = ImageDraw.Draw(img)
+
+# Main text
 x = 58
-y = 410
+y = 330
+shadow = 8
 
-# Draw strong shadow
-shadow_offset = 7
+for i, line in enumerate(main_text.split("\n")):
+    yy = y + i * 112
 
-draw.text(
-    (x + shadow_offset, y + shadow_offset),
-    line1,
-    font=font_big,
-    fill=(0, 0, 0)
-)
-draw.text(
-    (x, y),
-    line1,
-    font=font_big,
-    fill=(255, 255, 255)
-)
+    draw.text((x + shadow, yy + shadow), line, font=font_main, fill=(0, 0, 0))
+    draw.text((x, yy), line, font=font_main, fill=(255, 255, 255))
 
-if line2:
-    y2 = y + 92
-    draw.text(
-        (x + shadow_offset, y2 + shadow_offset),
-        line2,
-        font=font_big,
-        fill=(0, 0, 0)
-    )
-    draw.text(
-        (x, y2),
-        line2,
-        font=font_big,
-        fill=(255, 255, 255)
-    )
+# Subtitle pill
+pill_x, pill_y = 58, 610
+pill_w, pill_h = 520, 58
 
-# Small duration hook
-small_text = "10 HOURS • SLEEP & FOCUS"
-small_y = 625
-
-draw.text(
-    (x + 4, small_y + 4),
-    small_text,
-    font=font_small,
-    fill=(0, 0, 0)
-)
-draw.text(
-    (x, small_y),
-    small_text,
-    font=font_small,
-    fill=(230, 230, 230)
+draw.rounded_rectangle(
+    [pill_x, pill_y, pill_x + pill_w, pill_y + pill_h],
+    radius=18,
+    fill=(10, 10, 10)
 )
 
-# Save under 2MB for YouTube
-img.save(THUMBNAIL_PATH, "JPEG", quality=86, optimize=True)
+draw.text(
+    (pill_x + 24, pill_y + 9),
+    sub_text,
+    font=font_sub,
+    fill=(235, 235, 235)
+)
+
+img.save(THUMBNAIL_PATH, "JPEG", quality=88, optimize=True)
 
 print("Generated thumbnail:", THUMBNAIL_PATH)
-print("Thumbnail text:", thumbnail_text)
+print("Main text:", main_text.replace("\n", " "))

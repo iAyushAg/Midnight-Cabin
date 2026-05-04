@@ -1,47 +1,51 @@
 import os
 import json
-import base64
-from openai import OpenAI
+import requests
+from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-IDEA_PATH = os.path.join(BASE_DIR, "current_idea.json")
-VIDEO_DIR = os.path.join(BASE_DIR, "video")
+BASE_DIR = Path(__file__).resolve().parent.parent
+IDEA_PATH = BASE_DIR / "current_idea.json"
+VIDEO_DIR = BASE_DIR / "video"
+OUTPUT_PATH = VIDEO_DIR / "bg.jpg"
 
-os.makedirs(VIDEO_DIR, exist_ok=True)
+VIDEO_DIR.mkdir(exist_ok=True)
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY")
 
 with open(IDEA_PATH, "r") as f:
     idea = json.load(f)
 
-prompt = f"""
-Create a dark, cinematic, cozy ambient YouTube background image.
+layers = " ".join(idea.get("sound_layers", []))
+visual = idea.get("visual", "")
 
-Theme: {idea.get("theme")}
-Visual: {idea.get("visual")}
+query = f"{visual} night dark cozy cinematic"
 
-Style:
-- realistic cinematic scene
-- dark cozy midnight atmosphere
-- no people
-- no text
-- no logos
-- suitable for sleep and focus video
-- 16:9 YouTube background
-"""
+print("Unsplash query:", query)
 
-result = client.images.generate(
-    model="gpt-image-1",
-    prompt=prompt,
-    size="1536x1024"
-)
+url = "https://api.unsplash.com/search/photos"
 
-image_base64 = result.data[0].b64_json
-image_bytes = base64.b64decode(image_base64)
+params = {
+    "query": query,
+    "orientation": "landscape",
+    "per_page": 1
+}
 
-output_path = os.path.join(VIDEO_DIR, "bg.jpg")
+headers = {
+    "Authorization": f"Client-ID {ACCESS_KEY}"
+}
 
-with open(output_path, "wb") as f:
-    f.write(image_bytes)
+response = requests.get(url, headers=headers, params=params)
 
-print("Generated visual:", output_path)
+data = response.json()
+
+if "results" in data and len(data["results"]) > 0:
+    image_url = data["results"][0]["urls"]["full"]
+
+    img_data = requests.get(image_url).content
+
+    with open(OUTPUT_PATH, "wb") as f:
+        f.write(img_data)
+
+    print("Downloaded image from Unsplash:", image_url)
+else:
+    raise Exception("No image found from Unsplash")

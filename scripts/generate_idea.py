@@ -3,13 +3,13 @@ import os
 import re
 from datetime import datetime
 
-from openai import OpenAI
+from anthropic import Anthropic
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HISTORY_PATH = os.path.join(BASE_DIR, "video_history.json")
 IDEA_PATH = os.path.join(BASE_DIR, "current_idea.json")
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 if os.path.exists(HISTORY_PATH):
     with open(HISTORY_PATH, "r") as f:
@@ -68,47 +68,23 @@ Past video performance:
 Suggested primary category for this video:
 {suggested_primary}
 
-Your job:
 Generate ONE high-quality, unique video idea.
 
-Important variety rules:
+Rules:
 - Do NOT default to rain unless it is the suggested primary category.
-- Rain can be used, but only occasionally.
 - Rotate across rain, river, fireplace, ocean_waves, soft_wind, night_forest, and brown_noise.
-- If recent videos used rain, choose a different main category.
-- Only use rain in maximum 1 out of every 4 ideas.
-- Explore non-rain ideas like ocean waves, fireplace sleep ambience, forest night, soft wind, river stream, and brown noise focus.
-- Combine 2–3 sound layers that work well together.
-- Keep the soundscape calm, cozy, dark, and suitable for sleep or focus.
-- Avoid scary, chaotic, or dramatic themes.
+- Use 2–3 sound layers that work well together.
+- Always include brown_noise unless it conflicts with the theme.
+- Keep it calm, cozy, dark, and suitable for sleep or focus.
+- Avoid scary, chaotic, dramatic, or clickbait wording.
 - Avoid repeating exact titles.
-
-High-performing keyword families:
-- ocean waves for sleep
-- fireplace sounds for sleep
-- brown noise for focus
-- river sounds for relaxation
-- forest night ambience
-- wind sounds for sleep
-- rain sounds for sleep
-- black screen sleep sounds
-- deep sleep sounds no ads
-- focus sounds no distractions
-
-Title rules:
-- Make the title SEO-friendly.
-- Include a clear use case: sleep, focus, study, relaxation, or deep sleep.
-- Include duration like "10 Hours".
-- Keep title under 90 characters.
-- Do not mention AI.
-- Do not use clickbait.
-- Do not use scary words.
+- Title must be SEO-friendly, under 90 characters, and include "10 Hours".
 
 Return ONLY valid JSON.
 Do NOT include markdown.
 Do NOT include explanations.
 
-Structure:
+JSON structure:
 {{
   "theme": "...",
   "title": "...",
@@ -125,27 +101,52 @@ Structure:
 }}
 """
 
-response = client.responses.create(
-    model="gpt-4.1-mini",
-    input=prompt
-)
+try:
+    message = client.messages.create(
+        model="claude-3-5-haiku-latest",
+        max_tokens=700,
+        temperature=0.8,
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
 
-text = response.output_text.strip()
+    text = message.content[0].text.strip()
 
-print("RAW OUTPUT:")
-print(text)
+    print("RAW CLAUDE OUTPUT:")
+    print(text)
 
-text = re.sub(r"```json|```", "", text).strip()
+    text = re.sub(r"```json|```", "", text).strip()
+    match = re.search(r"\{.*\}", text, re.DOTALL)
 
-match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        raise ValueError("No JSON found in Claude output")
 
-if not match:
-    raise ValueError("No JSON found in model output")
+    idea = json.loads(match.group(0))
 
-idea = json.loads(match.group(0))
+except Exception as e:
+    print("Claude idea generation failed, using fallback:", e)
+
+    idea = {
+        "theme": f"{suggested_primary.replace('_', ' ').title()} Sleep Ambience",
+        "title": f"10 Hours {suggested_primary.replace('_', ' ').title()} for Sleep & Focus",
+        "sound_layers": ["brown_noise", suggested_primary],
+        "visual": f"dark cozy {suggested_primary.replace('_', ' ')} ambience, no people",
+        "duration_minutes": 600,
+        "audio_strategy": {
+            "primary_category": suggested_primary,
+            "secondary_category": "brown_noise",
+            "mood": "calm",
+            "intensity": "low"
+        },
+        "learning_reason": "Fallback idea used because Claude API was unavailable."
+    }
+
 idea["created_at"] = datetime.now().isoformat()
 
-# Safety cleanup
 allowed_layers = {
     "rain",
     "river",
@@ -167,15 +168,6 @@ if not idea["sound_layers"]:
 
 if "brown_noise" not in idea["sound_layers"]:
     idea["sound_layers"].insert(0, "brown_noise")
-
-# Enforce suggested primary if model keeps overusing rain
-primary = idea.get("audio_strategy", {}).get("primary_category")
-
-if suggested_primary != "rain" and primary == "rain":
-    idea["audio_strategy"]["primary_category"] = suggested_primary
-
-    if suggested_primary not in idea["sound_layers"]:
-        idea["sound_layers"] = ["brown_noise", suggested_primary]
 
 with open(IDEA_PATH, "w") as f:
     json.dump(idea, f, indent=2)
