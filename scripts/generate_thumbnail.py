@@ -1,4 +1,6 @@
 import json
+import os
+import random
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
@@ -6,14 +8,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 IDEA_PATH = BASE_DIR / "current_idea.json"
 BG_PATH = BASE_DIR / "video" / "bg.jpg"
 THUMBNAIL_PATH = BASE_DIR / "thumbnail.jpg"
+THUMBNAIL_B_PATH = BASE_DIR / "thumbnail_b.jpg"
+HISTORY_PATH = BASE_DIR / "video_history.json"
+AB_LOG_PATH = BASE_DIR / "thumbnail_ab_log.json"
 
 with open(IDEA_PATH, "r") as f:
     idea = json.load(f)
 
 title = idea.get("title", "").lower()
 layers = " ".join(idea.get("sound_layers", [])).lower()
+duration_minutes = idea.get("duration_minutes", 60)
+duration_label = "3 HOURS" if duration_minutes >= 180 else "1 HOUR"
 
-# 🔥 Decide thumbnail text (VERY IMPORTANT)
+# ─────────────────────────────────────────────
+# THEME TEXT
+# ─────────────────────────────────────────────
 if "rain" in title or "rain" in layers:
     main_text = "RAIN\nSLEEP"
 elif "brown_noise" in layers or "focus" in title:
@@ -26,78 +35,144 @@ elif "river" in layers:
     main_text = "RIVER\nSLEEP"
 elif "wind" in layers:
     main_text = "SOFT\nWIND"
+elif "forest" in layers or "night_forest" in layers:
+    main_text = "FOREST\nNIGHT"
 else:
     main_text = "DEEP\nSLEEP"
 
-sub_text = "10 HOURS • NO ADS"
+sub_text_a = f"{duration_label} • NO ADS"
+sub_text_b = f"{duration_label} • SLEEP SOUNDS"
 
+# ─────────────────────────────────────────────
+# A/B VARIANT SELECTION — pick based on past CTR
+# ─────────────────────────────────────────────
+ab_log = []
+if AB_LOG_PATH.exists():
+    with open(AB_LOG_PATH) as f:
+        ab_log = json.load(f)
+
+ctr_a = []
+ctr_b = []
+for entry in ab_log:
+    ctr = entry.get("ctr", 0)
+    if entry.get("variant") == "A":
+        ctr_a.append(ctr)
+    elif entry.get("variant") == "B":
+        ctr_b.append(ctr)
+
+avg_a = sum(ctr_a) / len(ctr_a) if ctr_a else 0
+avg_b = sum(ctr_b) / len(ctr_b) if ctr_b else 0
+
+print(f"Thumbnail A avg CTR: {avg_a:.3f}, B avg CTR: {avg_b:.3f}")
+
+# If A is consistently better by >10%, bias toward A — but still explore
+if avg_a > avg_b * 1.1 and len(ctr_a) >= 3:
+    chosen_variant = "A" if random.random() < 0.8 else "B"
+elif avg_b > avg_a * 1.1 and len(ctr_b) >= 3:
+    chosen_variant = "B" if random.random() < 0.8 else "A"
+else:
+    chosen_variant = random.choice(["A", "B"])
+
+print(f"Chosen thumbnail variant: {chosen_variant}")
+idea["thumbnail_variant"] = chosen_variant
+with open(IDEA_PATH, "w") as f:
+    json.dump(idea, f, indent=2)
+
+# ─────────────────────────────────────────────
+# IMAGE BASE PROCESSING
+# ─────────────────────────────────────────────
 if not BG_PATH.exists():
     raise FileNotFoundError("Missing video/bg.jpg")
 
-# Load base image
-img = Image.open(BG_PATH).convert("RGB")
+def prepare_base(path):
+    img = Image.open(path).convert("RGB")
+    w, h = img.size
+    target_ratio = 16 / 9
 
-# 🔧 Crop to 16:9
-w, h = img.size
-target_ratio = 16 / 9
+    if w / h > target_ratio:
+        new_w = int(h * target_ratio)
+        left = (w - new_w) // 2
+        img = img.crop((left, 0, left + new_w, h))
+    else:
+        new_h = int(w / target_ratio)
+        top = (h - new_h) // 2
+        img = img.crop((0, top, w, top + new_h))
 
-if w / h > target_ratio:
-    new_w = int(h * target_ratio)
-    left = (w - new_w) // 2
-    img = img.crop((left, 0, left + new_w, h))
+    img = img.resize((1280, 720))
+    img = ImageEnhance.Contrast(img).enhance(1.2)
+    img = ImageEnhance.Color(img).enhance(0.9)
+    img = img.filter(ImageFilter.SHARPEN)
+    return img
+
+
+def apply_overlay(img, darkness=0.35):
+    overlay = Image.new("RGB", img.size, (0, 0, 0))
+    return Image.blend(img, overlay, darkness)
+
+
+def apply_gradient(img):
+    gradient = Image.new("L", (1280, 720), 0)
+    for x in range(600):
+        value = int(255 * (1 - x / 600))
+        for y in range(720):
+            gradient.putpixel((x, y), value)
+    gradient = gradient.convert("RGB")
+    return Image.composite(img, Image.new("RGB", img.size, (0, 0, 0)), gradient)
+
+
+def get_fonts(big_size=110, small_size=40):
+    try:
+        return (
+            ImageFont.truetype("DejaVuSans-Bold.ttf", big_size),
+            ImageFont.truetype("DejaVuSans-Bold.ttf", small_size),
+        )
+    except Exception:
+        return ImageFont.load_default(), ImageFont.load_default()
+
+
+def draw_text_on(img, main_text, sub_text, text_color=(255, 255, 255)):
+    draw = ImageDraw.Draw(img)
+    font_big, font_small = get_fonts()
+    x, y, shadow = 60, 300, 8
+
+    for i, line in enumerate(main_text.split("\n")):
+        yy = y + i * 120
+        draw.text((x + shadow, yy + shadow), line, font=font_big, fill=(0, 0, 0))
+        draw.text((x, yy), line, font=font_big, fill=text_color)
+
+    draw.text((60, 630), sub_text, font=font_small, fill=(220, 220, 220))
+    return img
+
+
+# ─────────────────────────────────────────────
+# GENERATE BOTH VARIANTS
+# ─────────────────────────────────────────────
+
+# Variant A — white text, darker overlay
+img_a = prepare_base(BG_PATH)
+img_a = apply_overlay(img_a, darkness=0.38)
+img_a = apply_gradient(img_a)
+img_a = draw_text_on(img_a, main_text, sub_text_a, text_color=(255, 255, 255))
+img_a.save(THUMBNAIL_PATH, "JPEG", quality=88, optimize=True)
+print("Thumbnail A created")
+
+# Variant B — warm tinted text, slightly lighter
+img_b = prepare_base(BG_PATH)
+img_b = apply_overlay(img_b, darkness=0.28)
+img_b = apply_gradient(img_b)
+img_b = draw_text_on(img_b, main_text, sub_text_b, text_color=(255, 240, 180))
+img_b.save(THUMBNAIL_B_PATH, "JPEG", quality=88, optimize=True)
+print("Thumbnail B created")
+
+# ─────────────────────────────────────────────
+# SET ACTIVE THUMBNAIL
+# ─────────────────────────────────────────────
+import shutil
+
+if chosen_variant == "B":
+    shutil.copy(THUMBNAIL_B_PATH, THUMBNAIL_PATH)
+    print("Using Variant B as active thumbnail")
 else:
-    new_h = int(w / target_ratio)
-    top = (h - new_h) // 2
-    img = img.crop((0, top, w, top + new_h))
+    print("Using Variant A as active thumbnail")
 
-img = img.resize((1280, 720))
-
-# 🎨 Cinematic enhancement
-img = ImageEnhance.Contrast(img).enhance(1.2)
-img = ImageEnhance.Color(img).enhance(0.9)
-img = img.filter(ImageFilter.SHARPEN)
-
-# 🌑 Dark overlay
-overlay = Image.new("RGB", img.size, (0, 0, 0))
-img = Image.blend(img, overlay, 0.35)
-
-# 🎭 Left gradient (for text clarity)
-gradient = Image.new("L", (1280, 720), 0)
-for x in range(600):
-    value = int(255 * (1 - x / 600))
-    for y in range(720):
-        gradient.putpixel((x, y), value)
-
-gradient = gradient.convert("RGB")
-img = Image.composite(img, Image.new("RGB", img.size, (0, 0, 0)), gradient)
-
-draw = ImageDraw.Draw(img)
-
-# 🔤 Fonts
-try:
-    font_big = ImageFont.truetype("DejaVuSans-Bold.ttf", 110)
-    font_small = ImageFont.truetype("DejaVuSans-Bold.ttf", 40)
-except:
-    font_big = ImageFont.load_default()
-    font_small = ImageFont.load_default()
-
-# ✍️ Draw main text
-x = 60
-y = 320
-shadow = 8
-
-for i, line in enumerate(main_text.split("\n")):
-    yy = y + i * 110
-
-    # shadow
-    draw.text((x + shadow, yy + shadow), line, font=font_big, fill=(0, 0, 0))
-    # main text
-    draw.text((x, yy), line, font=font_big, fill=(255, 255, 255))
-
-# 🧾 Bottom label
-draw.text((60, 620), sub_text, font=font_small, fill=(230, 230, 230))
-
-# 💾 Save
-img.save(THUMBNAIL_PATH, "JPEG", quality=88, optimize=True)
-
-print("Thumbnail created from bg.jpg")
+print(f"Thumbnail ready: {THUMBNAIL_PATH}")
