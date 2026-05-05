@@ -134,6 +134,26 @@ echo "Video created:"
 ls -lh output/
 
 # ─────────────────────────────────────────────────────────
+# RENDER DARK SCREEN VERSION
+# Pure black background, same audio, separate upload
+# ─────────────────────────────────────────────────────────
+echo "Rendering dark screen version..."
+ffmpeg -y \
+    -f lavfi -i color=c=black:size=1280x720:rate=1 \
+    -stream_loop -1 -i audio/brown_noise.wav \
+    -t "$DURATION_SECONDS" \
+    -vf "format=yuv420p" \
+    -c:v libx264 -preset ultrafast -tune stillimage -crf 28 \
+    -c:a aac -b:a 192k \
+    -ar 44100 \
+    -r 1 \
+    -movflags +faststart \
+    output/video_dark.mp4 || echo "Dark screen render failed (non-fatal)"
+
+echo "Dark screen video created:"
+ls -lh output/video_dark.mp4 2>/dev/null || echo "Dark screen video not found"
+
+# ─────────────────────────────────────────────────────────
 # THUMBNAIL + UPLOAD
 # ─────────────────────────────────────────────────────────
 
@@ -141,6 +161,14 @@ echo "Uploading..."
 python3 scripts/generate_thumbnail.py || echo "Thumbnail generation skipped"
 
 python3 scripts/upload.py || fail "upload"
+
+# Upload dark screen version if it was rendered
+if [ -f "output/video_dark.mp4" ]; then
+    echo "Uploading dark screen version..."
+    python3 scripts/upload_dark.py || echo "Dark screen upload failed (non-fatal)"
+else
+    echo "No dark screen video found, skipping"
+fi
 
 echo "Pipeline finished"
 notify "✅ Midnight Cabin video uploaded successfully!"
