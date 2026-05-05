@@ -51,10 +51,12 @@ def fade(audio, seconds=5):
     return audio
 
 
-def crossfade_join(clips, target_len, crossfade_seconds=6):
+def crossfade_join(clips, target_len, crossfade_seconds=12):
+    """Join clips with long crossfades so transitions are inaudible."""
     if not clips:
         return np.zeros(target_len)
 
+    # Use longer crossfade — 12 seconds makes transitions seamless
     crossfade_len = SAMPLE_RATE * crossfade_seconds
     output = clips[0].copy()
 
@@ -62,7 +64,13 @@ def crossfade_join(clips, target_len, crossfade_seconds=6):
         if len(output) >= target_len:
             break
 
-        fade_len = min(crossfade_len, len(output), len(clip))
+        # Crossfade must not exceed 40% of either clip to avoid hollow sound
+        max_fade = min(len(output) // 3, len(clip) // 3)
+        fade_len = min(crossfade_len, max_fade)
+
+        if fade_len <= 0:
+            output = np.concatenate([output, clip])
+            continue
 
         fade_out = np.linspace(1, 0, fade_len)
         fade_in = np.linspace(0, 1, fade_len)
@@ -175,17 +183,20 @@ def pick_samples(category, max_files=4):
         if f.lower().endswith(".wav")
     ]
 
-    random.shuffle(files)
-
-    valid = []
+    # Sort by duration descending — longer samples loop better
+    file_durations = []
     for path in files:
         try:
             sr, data = read(path)
             seconds = len(data) / sr
             if seconds >= MIN_SAMPLE_SECONDS:
-                valid.append(path)
+                file_durations.append((path, seconds))
         except Exception:
             continue
+
+    # Sort longest first — prefer samples over 60 seconds
+    file_durations.sort(key=lambda x: x[1], reverse=True)
+    valid = [path for path, _ in file_durations]
 
     return valid[:max_files]
 
@@ -295,7 +306,7 @@ if "river" in layers:
     mix = add_layer(mix, river, 0.52, delay=500, width=0.9)
 
 if "ocean_waves" in layers:
-    ocean = build_sample_layer("ocean")
+    ocean = build_sample_layer("ocean_waves")
     if ocean is None:
         ocean = procedural_ocean()
     mix = add_layer(mix, ocean, 0.62, delay=700, width=0.9)
