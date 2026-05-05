@@ -1,1 +1,77 @@
-[]
+[
+  {
+    "video_id": "gdRYUF7IlsU",
+    "title": "Gentle Rain and River Sounds for Deep Sleep & Relaxation",
+    "theme": "Cozy Rainy Night by the River",
+    "sound_layers": [
+      "brown_noise",
+      "rain",
+      "river"
+    ],
+    "visual": "Dark cabin window looking out to a softly flowing river under rain",
+    "duration_minutes": 60,
+    "audio_strategy": {
+      "primary_category": "rain",
+      "secondary_category": "river",
+      "mood": "calm and soothing",
+      "intensity": "low"
+    },
+    "learning_reason": null,
+    "thumbnail_variant": "A",
+    "playlist_id": "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",
+    "uploaded_at": "2026-05-05T14:00:36.271634",
+    "privacy_status": "public",
+    "thumbnail_uploaded": false,
+    "performance": {}
+  },
+  {
+    "video_id": "C4vo6-mOOsc",
+    "title": "Gentle Rain and River Sounds for Deep Sleep & Relaxation",
+    "theme": "Cozy Rainy Night by the River",
+    "sound_layers": [
+      "brown_noise",
+      "rain",
+      "river"
+    ],
+    "visual": "Dark cabin window looking out to a softly flowing river under rain",
+    "duration_minutes": 60,
+    "audio_strategy": {
+      "primary_category": "rain",
+      "secondary_category": "river",
+      "mood": "calm and soothing",
+      "intensity": "low"
+    },
+    "learning_reason": null,
+    "thumbnail_variant": "A",
+    "playlist_id": "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",
+    "uploaded_at": "2026-05-05T14:02:03.446842",
+    "privacy_status": "public",
+    "thumbnail_uploaded": false,
+    "performance": {}
+  },
+  {
+    "video_id": "Z_hik22GyME",
+    "title": "Gentle Rain and River Sounds for Deep Sleep & Relaxation",
+    "theme": "Cozy Rainy Night by the River",
+    "sound_layers": [
+      "brown_noise",
+      "rain",
+      "river"
+    ],
+    "visual": "Dark cabin window looking out to a softly flowing river under rain",
+    "duration_minutes": 60,
+    "audio_strategy": {
+      "primary_category": "rain",
+      "secondary_category": "river",
+      "mood": "calm and soothing",
+      "intensity": "low"
+    },
+    "learning_reason": null,
+    "thumbnail_variant": "A",
+    "playlist_id": "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",
+    "uploaded_at": "2026-05-05T14:06:06.139055",
+    "privacy_status": "public",
+    "thumbnail_uploaded": false,
+    "performance": {}
+  }
+]

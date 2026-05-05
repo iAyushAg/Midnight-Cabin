@@ -57,15 +57,15 @@ notify "🌙 Midnight Cabin pipeline starting..."
 PERSISTENT_DIR="${PERSISTENT_DIR:-/data}"
 mkdir -p "$PERSISTENT_DIR"
 
-# Copy credentials to persistent dir if not already there
-if [ ! -f "$PERSISTENT_DIR/token.json" ] && [ -f "token.json" ]; then
+# Always overwrite token.json from repo if present — ensures fresh scopes on redeploy
+if [ -f "token.json" ]; then
     cp token.json "$PERSISTENT_DIR/token.json"
-    echo "Copied token.json to $PERSISTENT_DIR"
+    echo "Refreshed token.json in $PERSISTENT_DIR from repo"
 fi
 
-if [ ! -f "$PERSISTENT_DIR/client_secret.json" ] && [ -f "client_secret.json" ]; then
+if [ -f "client_secret.json" ]; then
     cp client_secret.json "$PERSISTENT_DIR/client_secret.json"
-    echo "Copied client_secret.json to $PERSISTENT_DIR"
+    echo "Refreshed client_secret.json in $PERSISTENT_DIR from repo"
 fi
 
 if [ ! -f "$PERSISTENT_DIR/video_history.json" ]; then

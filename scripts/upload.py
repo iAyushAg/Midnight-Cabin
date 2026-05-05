@@ -11,7 +11,7 @@ from google.auth.transport.requests import Request
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly",
-    "https://www.googleapis.com/auth/youtube.force-ssl"
+    "https://www.googleapis.com/auth/youtube",          # full management — needed for playlists + end screens
 ]
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
