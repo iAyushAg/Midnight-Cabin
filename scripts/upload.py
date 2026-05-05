@@ -199,79 +199,13 @@ except Exception as e:
     print(f"Playlist assignment failed (non-fatal): {e}")
 
 # ─────────────────────────────────────────────
-# END SCREEN
-# Shows subscribe button + best video in last 20 seconds
-# Requires video duration to position correctly
+# END SCREENS
+# YouTube's end screen API (part=endscreen) is not available
+# via the public Data API — it's YouTube Studio only.
+# Add end screens manually in YouTube Studio for each video:
+# Edit video → End screen → Add element → Subscribe + Video
 # ─────────────────────────────────────────────
-try:
-    end_screen_start_ms = (duration_seconds - 20) * 1000  # 20 seconds before end
-    end_screen_end_ms = duration_seconds * 1000
-
-    youtube.videos().update(
-        part="localizations"
-    )
-
-    # Use videoEditor endpoint for end screens
-    youtube.videos().update(
-        part="snippet",
-        body={
-            "id": video_id,
-            "snippet": {
-                "title": idea["title"],
-                "description": description,
-                "tags": all_tags,
-                "categoryId": "10"
-            }
-        }
-    ).execute()
-
-    # Add end screen elements
-    youtube.videoAbuseReportReasons()  # warm up client
-
-    end_screen_body = {
-        "videoId": video_id,
-        "elements": [
-            {
-                # Subscribe button
-                "type": "SUBSCRIBE",
-                "endscreen": {
-                    "startOffsetMs": end_screen_start_ms,
-                    "endOffsetMs": end_screen_end_ms,
-                    "left": 5,
-                    "top": 75,
-                    "width": 30
-                }
-            },
-            {
-                # Best performing video
-                "type": "VIDEO",
-                "endscreen": {
-                    "startOffsetMs": end_screen_start_ms,
-                    "endOffsetMs": end_screen_end_ms,
-                    "left": 65,
-                    "top": 55,
-                    "width": 30
-                },
-                "video": {
-                    "videoId": BEST_VIDEO_ID
-                }
-            }
-        ]
-    }
-
-    youtube.videos().update(
-        part="endscreen",
-        body={
-            "id": video_id,
-            "endscreen": end_screen_body
-        }
-    ).execute()
-
-    print(f"End screen added — subscribe button + video {BEST_VIDEO_ID}")
-
-except Exception as e:
-    print(f"End screen failed (non-fatal): {e}")
-    print("Note: End screens can be added manually in YouTube Studio if needed")
+print(f"Reminder: Add end screen manually in YouTube Studio for video {video_id}")
 
 # ─────────────────────────────────────────────
 # SAVE TO HISTORY

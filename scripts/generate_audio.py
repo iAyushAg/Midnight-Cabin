@@ -9,9 +9,14 @@ DURATION = 2 * 60  # source audio length; FFmpeg loops this into longer video
 MIN_SAMPLE_SECONDS = 45
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PERSISTENT_DIR = os.environ.get("PERSISTENT_DIR", "/data")
 AUDIO_DIR = os.path.join(BASE_DIR, "audio")
 SAMPLES_DIR = os.path.join(BASE_DIR, "audio_samples")
-IDEA_PATH = os.path.join(BASE_DIR, "current_idea.json")
+
+# Read idea from persistent dir — falls back to BASE_DIR if not found
+IDEA_PATH = os.path.join(PERSISTENT_DIR, "current_idea.json")
+if not os.path.exists(IDEA_PATH):
+    IDEA_PATH = os.path.join(BASE_DIR, "current_idea.json")
 
 os.makedirs(AUDIO_DIR, exist_ok=True)
 
