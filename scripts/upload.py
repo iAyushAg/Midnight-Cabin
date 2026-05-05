@@ -61,7 +61,11 @@ youtube = build("youtube", "v3", credentials=creds)
 # ─────────────────────────────────────────────
 # LOAD IDEA
 # ─────────────────────────────────────────────
-with open(os.path.join(BASE_DIR, "current_idea.json"), "r") as f:
+# Read from persistent dir — falls back to BASE_DIR if not found
+idea_path = os.path.join(PERSISTENT_DIR, "current_idea.json")
+if not os.path.exists(idea_path):
+    idea_path = os.path.join(BASE_DIR, "current_idea.json")
+with open(idea_path, "r") as f:
     idea = json.load(f)
 
 if not os.path.exists(VIDEO_FILE):
