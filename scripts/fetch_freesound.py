@@ -43,14 +43,19 @@ ALLOWED_LICENSES = {
     # CC0
     "Creative Commons 0",
     "http://creativecommons.org/publicdomain/zero/1.0/",
+    "https://creativecommons.org/publicdomain/zero/1.0/",
     # Attribution
     "Attribution",
     "http://creativecommons.org/licenses/by/3.0/",
     "http://creativecommons.org/licenses/by/4.0/",
+    "https://creativecommons.org/licenses/by/3.0/",
+    "https://creativecommons.org/licenses/by/4.0/",
     # Attribution NonCommercial
     "Attribution NonCommercial",
     "http://creativecommons.org/licenses/by-nc/3.0/",
     "http://creativecommons.org/licenses/by-nc/4.0/",
+    "https://creativecommons.org/licenses/by-nc/3.0/",
+    "https://creativecommons.org/licenses/by-nc/4.0/",
 }
 
 
