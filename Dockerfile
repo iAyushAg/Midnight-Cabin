@@ -1,6 +1,13 @@
-FROM python:3.11-slim
+FROM jrottenberg/ffmpeg:4.4-ubuntu2004
 
-RUN apt-get update && apt-get install -y ffmpeg curl bc && rm -rf /var/lib/apt/lists/*
+USER root
+
+RUN apt-get update && apt-get install -y \
+    python3.11 \
+    python3-pip \
+    curl \
+    bc \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
