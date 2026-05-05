@@ -52,7 +52,6 @@ notify "🌙 Midnight Cabin pipeline starting..."
 
 # ─────────────────────────────────────────────────────────
 # PERSISTENT DIR SETUP
-# Copies credentials to /data on first run so they survive redeployments
 # ─────────────────────────────────────────────────────────
 PERSISTENT_DIR="${PERSISTENT_DIR:-/data}"
 mkdir -p "$PERSISTENT_DIR"
@@ -78,10 +77,9 @@ ls -la "$PERSISTENT_DIR"
 
 # ─────────────────────────────────────────────────────────
 # CLEANUP — remove any BY-NC licensed sounds from cache
-# These cannot be used commercially
 # ─────────────────────────────────────────────────────────
 python3 - << 'PYEOF'
-import json, os, glob
+import json, os
 
 attr_path = os.path.join(os.environ.get("PERSISTENT_DIR", "/data"), "audio_attributions.json")
 nc_licenses = {
@@ -133,22 +131,27 @@ echo "Find WAV files:"
 find . -name "*.wav" -print
 
 # ─────────────────────────────────────────────────────────
-# READ DURATION FROM IDEA JSON
+# READ DURATION FROM IDEA JSON — reads from PERSISTENT_DIR
 # ─────────────────────────────────────────────────────────
 
-DURATION_MINUTES=$(python3 -c "
-import json
-with open('current_idea.json') as f:
+DURATION_MINUTES=$(python3 - << 'PYEOF'
+import json, os
+persistent_dir = os.environ.get("PERSISTENT_DIR", "/data")
+idea_path = os.path.join(persistent_dir, "current_idea.json")
+# fallback to project root if not in persistent dir
+if not os.path.exists(idea_path):
+    idea_path = "current_idea.json"
+with open(idea_path) as f:
     idea = json.load(f)
-print(idea.get('duration_minutes', 480))
-")
+print(idea.get("duration_minutes", 480))
+PYEOF
+)
 
 DURATION_SECONDS=$((DURATION_MINUTES * 60))
 echo "Video duration: ${DURATION_MINUTES} minutes (${DURATION_SECONDS} seconds)"
 
 # ─────────────────────────────────────────────────────────
-# RENDER VIDEO — static image, ultrafast preset, 1fps
-# No zoompan — cuts render time from 16+ hours to ~30 mins
+# RENDER VIDEO
 # ─────────────────────────────────────────────────────────
 
 echo "Creating output folder..."
@@ -171,16 +174,9 @@ ffmpeg -y \
 echo "Video created:"
 ls -lh output/
 
-# Dark screen render happens only when rotation picks dark_screen type
-# See UPLOAD section below
-
 # ─────────────────────────────────────────────────────────
-# ROTATION — pick which video type to upload this cycle
-# Rotates: main → adhd → dark_screen → study_with_me → main...
+# ROTATION — picks: main → adhd → dark_screen → study_with_me → main...
 # ─────────────────────────────────────────────────────────
-
-ROTATION_FILE="${PERSISTENT_DIR}/video_type_rotation.json"
-ROTATION_ORDER='["main", "adhd", "dark_screen", "study_with_me"]'
 
 VIDEO_TYPE=$(python3 - << 'PYEOF'
 import json, os
@@ -197,7 +193,6 @@ if os.path.exists(rotation_file):
 else:
     next_type = "main"
 
-# Save next type
 with open(rotation_file, "w") as f:
     json.dump({"last_type": next_type}, f)
 
@@ -243,10 +238,10 @@ elif [ "$VIDEO_TYPE" = "adhd" ]; then
     python3 scripts/upload_adhd.py || fail "upload"
 
 elif [ "$VIDEO_TYPE" = "study_with_me" ]; then
-    echo "Rendering Study With Me (Pomodoro) version..."
+    echo "Rendering and uploading Study With Me (Pomodoro) version..."
     python3 scripts/upload_study.py || fail "upload"
+
 fi
 
 echo "Pipeline finished — uploaded: $VIDEO_TYPE"
 notify "✅ Midnight Cabin — $VIDEO_TYPE video uploaded successfully!"
-# Note: run_pipeline.sh already handles pipeline
