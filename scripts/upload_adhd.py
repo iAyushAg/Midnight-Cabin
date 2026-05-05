@@ -19,12 +19,11 @@ SCOPES = [
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PERSISTENT_DIR = os.environ.get("PERSISTENT_DIR", "/data")
 TOKEN_FILE = os.path.join(PERSISTENT_DIR, "token.json")
-CLIENT_SECRET_FILE = os.path.join(PERSISTENT_DIR, "client_secret.json")
 HISTORY_FILE = os.path.join(PERSISTENT_DIR, "video_history.json")
-VIDEO_FILE = os.path.join(BASE_DIR, "output", "video_dark.mp4")
+VIDEO_FILE = os.path.join(BASE_DIR, "output", "video.mp4")
 THUMBNAIL_FILE = os.path.join(BASE_DIR, "thumbnail.jpg")
 
-DARK_SCREEN_PLAYLIST_ID = "PL1C0d7IpxX4tlvxdvXDlQmIHhs0VwxEKi"
+ADHD_PLAYLIST_ID = "PL1C0d7IpxX4urDAwNHXeOWiow5xOTsye3"
 
 # ─────────────────────────────────────────────
 # AUTH
@@ -35,7 +34,7 @@ if os.path.exists(TOKEN_FILE):
 if creds and creds.expired and creds.refresh_token:
     creds.refresh(Request())
 if not creds or not creds.valid:
-    raise RuntimeError("Invalid credentials — re-authenticate locally first")
+    raise RuntimeError("Invalid credentials")
 
 youtube = build("youtube", "v3", credentials=creds)
 
@@ -50,7 +49,7 @@ with open(idea_path, "r") as f:
     idea = json.load(f)
 
 if not os.path.exists(VIDEO_FILE):
-    raise FileNotFoundError(f"Dark screen video not found: {VIDEO_FILE}")
+    raise FileNotFoundError(f"Video not found: {VIDEO_FILE}")
 
 duration_minutes = idea.get("duration_minutes", 480)
 duration_label = "10 Hours" if duration_minutes >= 600 else "8 Hours"
@@ -60,90 +59,86 @@ mood = idea.get("audio_strategy", {}).get("mood", "calm")
 theme = idea.get("theme", "")
 
 # ─────────────────────────────────────────────
-# BUILD DARK SCREEN TITLE
+# ADHD TITLE — always angle toward focus/ADHD
 # ─────────────────────────────────────────────
-original_title = idea.get("title", "")
+sound_label = primary.replace("_", " ").title()
 
-# Remove existing duration label and add dark screen suffix
-base_title = original_title
-for label in ["10 Hours", "8 Hours", "10 hours", "8 hours"]:
-    base_title = base_title.replace(label, "").strip()
-base_title = base_title.strip("| -–").strip()
-
-dark_title = f"{base_title} | {duration_label} Dark Screen"
+# Pick angle based on primary category
+if primary == "brown_noise":
+    adhd_title = f"Brown Noise for ADHD Focus | {duration_label} No Interruptions"
+elif primary in ["rain", "river", "ocean_waves"]:
+    adhd_title = f"{sound_label} + Brown Noise for ADHD | {duration_label} Deep Focus"
+elif primary == "fireplace":
+    adhd_title = f"Fireplace Brown Noise for ADHD Focus | {duration_label}"
+else:
+    adhd_title = f"Brown Noise & {sound_label} for ADHD | {duration_label} Focus Music"
 
 # Ensure under 90 chars
-if len(dark_title) > 90:
-    dark_title = f"{duration_label} {primary.replace('_', ' ').title()} Dark Screen Sleep"
+if len(adhd_title) > 90:
+    adhd_title = f"Brown Noise for ADHD Focus | {duration_label}"
 
-print(f"Dark screen title: {dark_title}")
+print(f"ADHD title: {adhd_title}")
 
 # ─────────────────────────────────────────────
-# BUILD DARK SCREEN DESCRIPTION
+# ADHD DESCRIPTION
 # ─────────────────────────────────────────────
-description = f"""{theme} — Dark Screen Version
+description = f"""Brown noise and ambient sound specifically mixed for ADHD focus and deep work.
 
-{duration_label} of uninterrupted {primary.replace('_', ' ')} sounds for deep sleep — with a completely black screen so your device won't disturb your rest.
+{duration_label} of uninterrupted sound — no music, no beats, no sudden changes that break concentration.
 
-🌑 Dark screen — no light, no distractions
+🧠 Why brown noise helps ADHD:
+• Masks distracting background sounds
+• Provides consistent auditory stimulation
+• Helps quiet racing thoughts
+• Scientifically linked to improved focus in ADHD brains
+
 🎵 Sound layers: {", ".join(layers)}
 🌙 Mood: {mood.capitalize()}
 ⏱ Duration: {duration_label}
 
 ✨ Perfect for:
-• Sleeping with your phone or TV on
-• People sensitive to screen light at night
-• ASMR and relaxation without visual stimulation
-• Overnight background ambience
+• ADHD work and study sessions
+• Deep focus and flow state
+• Blocking office or home distractions
+• Reading and writing tasks
 
-No ads. No interruptions. Screen stays black.
+No ads. No interruptions. No music — just pure focus sound.
 
-🔔 Subscribe for new dark screen soundscapes every few days.
+🔔 Subscribe for new ADHD focus sounds every few days.
 
-#DarkScreen #BlackScreen #SleepSounds #BrownNoise #AmbientSounds #SleepMusic
+#ADHD #BrownNoise #FocusMusic #ADHDFocus #DeepWork #StudyMusic #BrownNoiseADHD #FocusSounds
 """
 
 # ─────────────────────────────────────────────
-# BUILD TAGS
+# TAGS
 # ─────────────────────────────────────────────
-base_tags = [
-    "dark screen",
-    "black screen",
-    "sleep sounds dark screen",
-    "brown noise dark screen",
-    f"{duration_label.lower()} dark screen",
-    f"{duration_label.lower()} sleep",
-    "sleep sounds",
-    "ambient sounds",
-    "no ads sleep",
-    "screen off sleep sounds",
-]
-
-theme_tags = {
-    "rain":         ["rain dark screen", "rain sounds black screen"],
-    "river":        ["river sounds dark screen", "stream dark screen"],
-    "fireplace":    ["fireplace dark screen", "fire sounds black screen"],
-    "ocean_waves":  ["ocean dark screen", "waves black screen"],
-    "soft_wind":    ["wind sounds dark screen"],
-    "night_forest": ["forest sounds dark screen"],
-    "brown_noise":  ["brown noise dark screen", "brown noise black screen"],
-}
-
-extra_tags = []
-for layer in layers:
-    extra_tags.extend(theme_tags.get(layer, []))
-
-all_tags = list(dict.fromkeys(base_tags + extra_tags))[:15]
+all_tags = [
+    "ADHD focus",
+    "brown noise ADHD",
+    "ADHD brown noise",
+    "focus music ADHD",
+    "brown noise focus",
+    "ADHD study music",
+    "deep work music",
+    "concentration music",
+    "ADHD sounds",
+    f"{duration_label.lower()} focus",
+    "no interruptions focus",
+    "study music no lyrics",
+    "brown noise",
+    "focus sounds",
+    "ADHD tools"
+][:15]
 
 # ─────────────────────────────────────────────
-# UPLOAD DARK SCREEN VIDEO
+# UPLOAD
 # ─────────────────────────────────────────────
-print("Uploading dark screen video...")
+print("Uploading ADHD video...")
 request = youtube.videos().insert(
     part="snippet,status",
     body={
         "snippet": {
-            "title": dark_title,
+            "title": adhd_title,
             "description": description,
             "tags": all_tags,
             "categoryId": "10"
@@ -158,53 +153,43 @@ request = youtube.videos().insert(
 
 response = request.execute()
 video_id = response["id"]
-print(f"Dark screen video uploaded: https://youtube.com/watch?v={video_id}")
+print(f"ADHD video uploaded: https://youtube.com/watch?v={video_id}")
 
-# ─────────────────────────────────────────────
-# THUMBNAIL — reuse main video thumbnail
-# ─────────────────────────────────────────────
+# THUMBNAIL
 if os.path.exists(THUMBNAIL_FILE):
     try:
         youtube.thumbnails().set(
             videoId=video_id,
             media_body=MediaFileUpload(THUMBNAIL_FILE)
         ).execute()
-        print("Thumbnail uploaded to dark screen video")
+        print("Thumbnail uploaded")
     except Exception as e:
-        print(f"Thumbnail upload failed (non-fatal): {e}")
+        print(f"Thumbnail failed (non-fatal): {e}")
 
-# ─────────────────────────────────────────────
-# PLAYLIST ASSIGNMENT — dark screen playlist
-# ─────────────────────────────────────────────
+# PLAYLIST
 try:
     youtube.playlistItems().insert(
         part="snippet",
         body={
             "snippet": {
-                "playlistId": DARK_SCREEN_PLAYLIST_ID,
-                "resourceId": {
-                    "kind": "youtube#video",
-                    "videoId": video_id
-                }
+                "playlistId": ADHD_PLAYLIST_ID,
+                "resourceId": {"kind": "youtube#video", "videoId": video_id}
             }
         }
     ).execute()
-    print(f"Added to dark screen playlist: {DARK_SCREEN_PLAYLIST_ID}")
+    print(f"Added to ADHD playlist")
 except Exception as e:
-    print(f"Playlist assignment failed (non-fatal): {e}")
+    print(f"Playlist failed (non-fatal): {e}")
 
-# ─────────────────────────────────────────────
-# SAVE TO HISTORY
-# ─────────────────────────────────────────────
+# HISTORY
 record = {
     "video_id": video_id,
-    "title": dark_title,
+    "title": adhd_title,
     "theme": theme,
-    "type": "dark_screen",
+    "type": "adhd",
     "sound_layers": layers,
     "duration_minutes": duration_minutes,
-    "audio_strategy": idea.get("audio_strategy", {}),
-    "playlist_id": DARK_SCREEN_PLAYLIST_ID,
+    "playlist_id": ADHD_PLAYLIST_ID,
     "uploaded_at": datetime.now().isoformat(),
     "privacy_status": "public",
     "performance": {}
@@ -217,12 +202,10 @@ else:
     history = []
 
 history.append(record)
-
 with open(HISTORY_FILE, "w") as f:
     json.dump(history, f, indent=2)
 
-print(f"Dark screen video saved to history: {video_id}")
-print(f"Title: {dark_title}")
+print(f"ADHD video saved to history: {video_id}")
 
 # Pin comment and community post
 pin_comment(youtube, video_id, primary, duration_label, layers)

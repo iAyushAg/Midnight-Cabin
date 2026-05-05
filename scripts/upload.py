@@ -7,6 +7,9 @@ from googleapiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
@@ -83,39 +86,12 @@ theme = idea.get("theme", "")
 # ─────────────────────────────────────────────
 # BUILD TAGS
 # ─────────────────────────────────────────────
-base_tags = [
-    "sleep sounds",
-    "focus music",
-    "brown noise",
-    "ambient sounds",
-    "relaxing sounds",
-    "study sounds",
-    "deep sleep",
-    "white noise",
-    "nature sounds",
-    f"{duration_label.lower()} sleep",
-    f"{duration_label.lower()} focus"
-]
-
-theme_tags = {
-    "rain":         ["rain sounds", "rain for sleep", "rainy night ambience"],
-    "river":        ["river sounds", "river ambience", "stream sounds"],
-    "fireplace":    ["fireplace sounds", "crackling fire", "cozy fireplace"],
-    "ocean_waves":  ["ocean sounds", "wave sounds", "ocean for sleep"],
-    "soft_wind":    ["wind sounds", "night wind", "wind ambience"],
-    "night_forest": ["forest sounds", "forest ambience", "night forest"],
-    "brown_noise":  ["brown noise", "brown noise sleep", "brown noise focus"],
-}
-
-extra_tags = []
-for layer in layers:
-    extra_tags.extend(theme_tags.get(layer, []))
-
-all_tags = list(dict.fromkeys(base_tags + extra_tags))[:15]
+all_tags = get_full_tags(primary, layers, duration_label, "main")
 
 # ─────────────────────────────────────────────
 # BUILD DESCRIPTION
 # ─────────────────────────────────────────────
+chapters = generate_chapters(duration_minutes, layers, primary)
 description = f"""{theme}
 
 {duration_label} of uninterrupted {primary.replace('_', ' ')} sounds for sleep, relaxation, and deep focus.
@@ -133,6 +109,9 @@ description = f"""{theme}
 No ads. No interruptions. Just pure ambient sound.
 
 🔔 Subscribe for new ambient soundscapes every few days.
+
+📌 Chapters:
+{chapters}
 
 #SleepSounds #AmbientSounds #BrownNoise #Relaxation #FocusMusic
 """
@@ -245,3 +224,21 @@ with open(HISTORY_FILE, "w") as f:
 print("Saved to history:", video_id)
 print(f"Thumbnail variant: {record['thumbnail_variant']}")
 print(f"Playlist: {playlist_id}")
+
+# Post a comment on the video (pin manually in YouTube Studio)
+pin_comment(youtube, video_id, primary, duration_label, layers)
+
+# Post community tab update
+post_community_update(youtube, video_id, idea["title"], primary, duration_label)
+
+# Send Telegram reminder to pin the comment
+try:
+    import requests as _req
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if bot_token and chat_id:
+        msg = f"📌 Pin the comment on your new video:\nhttps://studio.youtube.com/video/{video_id}/comments"
+        _req.post(f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                  data={"chat_id": chat_id, "text": msg}, timeout=10)
+except Exception:
+    pass

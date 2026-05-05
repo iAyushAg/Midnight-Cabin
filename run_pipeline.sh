@@ -121,7 +121,7 @@ ffmpeg -y \
     -loop 1 -i video/bg.jpg \
     -stream_loop -1 -i audio/brown_noise.wav \
     -t "$DURATION_SECONDS" \
-    -vf "scale=1380:776,crop=1280:720:'(iw-ow)/2*sin(t/300)+(iw-ow)/2':'(ih-oh)/2',format=yuv420p" \
+    -vf "scale=1380:776,crop=1280:720:'(iw-ow)/2*sin(t/300)+(iw-ow)/2':'(ih-oh)/2',drawtext=text='Now Playing  •  No Ads  •  No Interruptions':fontsize=24:fontcolor=white@0.85:x=40:y=h-th-40:enable='between(t,0,8)',format=yuv420p" \
     -af "equalizer=f=8000:width_type=o:width=2:g=-6,equalizer=f=100:width_type=o:width=2:g=2" \
     -c:v libx264 -preset ultrafast -tune stillimage -crf 28 \
     -c:a aac -b:a 192k \
@@ -133,42 +133,81 @@ ffmpeg -y \
 echo "Video created:"
 ls -lh output/
 
-# ─────────────────────────────────────────────────────────
-# RENDER DARK SCREEN VERSION
-# Pure black background, same audio, separate upload
-# ─────────────────────────────────────────────────────────
-echo "Rendering dark screen version..."
-ffmpeg -y \
-    -f lavfi -i color=c=black:size=1280x720:rate=1 \
-    -stream_loop -1 -i audio/brown_noise.wav \
-    -t "$DURATION_SECONDS" \
-    -vf "format=yuv420p" \
-    -c:v libx264 -preset ultrafast -tune stillimage -crf 28 \
-    -c:a aac -b:a 192k \
-    -ar 44100 \
-    -r 1 \
-    -movflags +faststart \
-    output/video_dark.mp4 || echo "Dark screen render failed (non-fatal)"
-
-echo "Dark screen video created:"
-ls -lh output/video_dark.mp4 2>/dev/null || echo "Dark screen video not found"
+# Dark screen render happens only when rotation picks dark_screen type
+# See UPLOAD section below
 
 # ─────────────────────────────────────────────────────────
-# THUMBNAIL + UPLOAD
+# ROTATION — pick which video type to upload this cycle
+# Rotates: main → adhd → dark_screen → study_with_me → main...
 # ─────────────────────────────────────────────────────────
 
-echo "Uploading..."
+ROTATION_FILE="${PERSISTENT_DIR}/video_type_rotation.json"
+ROTATION_ORDER='["main", "adhd", "dark_screen", "study_with_me"]'
+
+VIDEO_TYPE=$(python3 - << 'PYEOF'
+import json, os
+
+rotation_file = os.environ.get("PERSISTENT_DIR", "/data") + "/video_type_rotation.json"
+order = ["main", "adhd", "dark_screen", "study_with_me"]
+
+if os.path.exists(rotation_file):
+    with open(rotation_file) as f:
+        data = json.load(f)
+    last = data.get("last_type", "study_with_me")
+    idx = order.index(last) if last in order else -1
+    next_type = order[(idx + 1) % len(order)]
+else:
+    next_type = "main"
+
+# Save next type
+with open(rotation_file, "w") as f:
+    json.dump({"last_type": next_type}, f)
+
+print(next_type)
+PYEOF
+)
+
+echo "This cycle video type: $VIDEO_TYPE"
+notify "🎬 Midnight Cabin — rendering $VIDEO_TYPE video..."
+
+# ─────────────────────────────────────────────────────────
+# THUMBNAIL — always generate
+# ─────────────────────────────────────────────────────────
+echo "Generating thumbnail..."
 python3 scripts/generate_thumbnail.py || echo "Thumbnail generation skipped"
 
-python3 scripts/upload.py || fail "upload"
+# ─────────────────────────────────────────────────────────
+# UPLOAD — based on rotation type
+# ─────────────────────────────────────────────────────────
 
-# Upload dark screen version if it was rendered
-if [ -f "output/video_dark.mp4" ]; then
-    echo "Uploading dark screen version..."
-    python3 scripts/upload_dark.py || echo "Dark screen upload failed (non-fatal)"
-else
-    echo "No dark screen video found, skipping"
+if [ "$VIDEO_TYPE" = "main" ]; then
+    echo "Uploading main sleep video..."
+    python3 scripts/upload.py || fail "upload"
+
+elif [ "$VIDEO_TYPE" = "dark_screen" ]; then
+    echo "Rendering dark screen version..."
+    ffmpeg -y \
+        -f lavfi -i color=c=black:size=1280x720:rate=1 \
+        -stream_loop -1 -i audio/brown_noise.wav \
+        -t "$DURATION_SECONDS" \
+        -vf "format=yuv420p" \
+        -c:v libx264 -preset ultrafast -tune stillimage -crf 28 \
+        -c:a aac -b:a 192k \
+        -ar 44100 \
+        -r 1 \
+        -movflags +faststart \
+        output/video_dark.mp4 || fail "dark screen render"
+    echo "Uploading dark screen video..."
+    python3 scripts/upload_dark.py || fail "upload"
+
+elif [ "$VIDEO_TYPE" = "adhd" ]; then
+    echo "Uploading ADHD focus video..."
+    python3 scripts/upload_adhd.py || fail "upload"
+
+elif [ "$VIDEO_TYPE" = "study_with_me" ]; then
+    echo "Rendering Study With Me (Pomodoro) version..."
+    python3 scripts/upload_study.py || fail "upload"
 fi
 
-echo "Pipeline finished"
-notify "✅ Midnight Cabin video uploaded successfully!"
+echo "Pipeline finished — uploaded: $VIDEO_TYPE"
+notify "✅ Midnight Cabin — $VIDEO_TYPE video uploaded successfully!"
