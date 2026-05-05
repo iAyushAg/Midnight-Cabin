@@ -141,13 +141,13 @@ low_performers = []
 
 if history:
     scored = [
-        (v, v.get("performance", {}).get("views", 0))
-        for v in history
+        (i, v.get("performance", {}).get("views", 0))
+        for i, v in enumerate(history)
         if v.get("performance", {}).get("views", 0) > 0
     ]
     scored.sort(key=lambda x: x[1], reverse=True)
-    top_performers = [v[0] for v in scored[:3]]
-    low_performers = [v[0] for v in scored[-3:] if v[1] > 0]
+    top_performers = [history[i] for i, _ in scored[:3]]
+    low_performers = [history[i] for i, v in scored[-3:] if v > 0]
 
 # ─────────────────────────────────────────────
 # 6. CALL CLAUDE
