@@ -123,5 +123,30 @@
     "privacy_status": "public",
     "thumbnail_uploaded": false,
     "performance": {}
+  },
+  {
+    "video_id": "HLaTvorWyKQ",
+    "title": "Gentle Rain and River Sounds for Deep Sleep & Relaxation",
+    "theme": "Cozy Rainy Night by the River",
+    "sound_layers": [
+      "brown_noise",
+      "rain",
+      "river"
+    ],
+    "visual": "Dark cabin window looking out to a softly flowing river under rain",
+    "duration_minutes": 600,
+    "audio_strategy": {
+      "primary_category": "rain",
+      "secondary_category": "river",
+      "mood": "calm and soothing",
+      "intensity": "low"
+    },
+    "learning_reason": null,
+    "thumbnail_variant": "A",
+    "playlist_id": "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",
+    "uploaded_at": "2026-05-05T22:48:13.968299",
+    "privacy_status": "public",
+    "thumbnail_uploaded": false,
+    "performance": {}
   }
 ]
