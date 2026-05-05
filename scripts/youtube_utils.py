@@ -9,6 +9,50 @@ import os
 import json
 
 
+def get_sound_attributions(persistent_dir):
+    """Read audio_attributions.json and return credits for BY-licensed sounds."""
+    import json, os
+
+    attr_path = os.path.join(persistent_dir, "audio_attributions.json")
+    if not os.path.exists(attr_path):
+        return ""
+
+    with open(attr_path) as f:
+        attributions = json.load(f)
+
+    cc0_licenses = {
+        "Creative Commons 0",
+        "http://creativecommons.org/publicdomain/zero/1.0/",
+        "https://creativecommons.org/publicdomain/zero/1.0/",
+    }
+
+    # Only credit sounds that require attribution (BY license)
+    # CC0 and Pixabay License need no attribution
+    no_attribution_needed = cc0_licenses | {"Pixabay License"}
+
+    credits = []
+    seen = set()
+    for item in attributions:
+        sound_id = item.get("sound_id")
+        license_str = item.get("license", "")
+        if license_str not in no_attribution_needed and sound_id not in seen:
+            seen.add(sound_id)
+            name = item.get("name", "Unknown")
+            username = item.get("username", "Unknown")
+            url = item.get("source_url", "")
+            credits.append(f'• "{name}" by {username} — {url} (CC BY)')
+
+    if not credits:
+        return ""
+
+    return "\U0001f3b5 Sound Credits (CC Attribution License):\n" + "\n".join(credits)
+
+
+def get_ai_disclosure():
+    """Returns AI content disclosure text required by YouTube policy."""
+    return "ℹ️ This soundscape was created with AI-assisted audio generation and composition tools."
+
+
 def generate_chapters(duration_minutes, sound_layers, primary):
     """Generate chapter timestamps for a sleep/ambient video."""
     chapters = ["0:00 Intro — Sound begins"]
@@ -184,40 +228,37 @@ def pin_comment(youtube, video_id, primary, duration_label, sound_layers):
 
 
 def post_community_update(youtube, video_id, title, primary, duration_label):
-    """Post a community tab update about the new video."""
+    """
+    Community posts via YouTube API require Partner Program access.
+    Instead, we send the post content via Telegram so you can copy-paste it manually.
+    """
+    import os, random, requests as _req
 
     emoji_map = {
-        "rain": "🌧️",
-        "river": "🌊",
-        "fireplace": "🔥",
-        "ocean_waves": "🌊",
-        "soft_wind": "🍃",
-        "night_forest": "🌲",
-        "brown_noise": "🧠",
+        "rain": "🌧️", "river": "🌊", "fireplace": "🔥",
+        "ocean_waves": "🌊", "soft_wind": "🍃",
+        "night_forest": "🌲", "brown_noise": "🧠",
     }
-
     emoji = emoji_map.get(primary, "🌙")
 
     hooks = [
         f"{emoji} New {duration_label} ambient just dropped — perfect for tonight. No ads, no interruptions.\n\n▶️ youtu.be/{video_id}",
         f"New upload: {title}\n\n{emoji} {duration_label} of pure ambient sound. Let it play while you sleep, study, or just decompress.\n\n▶️ youtu.be/{video_id}",
-        f"{emoji} Can't sleep? Can't focus? Try this.\n\n{duration_label} of uninterrupted {primary.replace('_', ' ')} sounds — no ads, no sudden volume changes.\n\n▶️ youtu.be/{video_id}",
+        f"{emoji} Can't sleep? Can't focus? Try this.\n\n{duration_label} of uninterrupted {primary.replace('_', ' ')} sounds — no ads.\n\n▶️ youtu.be/{video_id}",
     ]
-
-    import random
     post_text = random.choice(hooks)
 
-    try:
-        youtube.communityPosts().insert(
-            part="snippet",
-            body={
-                "snippet": {
-                    "type": "textPost",
-                    "textOriginal": post_text
-                }
-            }
-        ).execute()
-        print(f"Community post published")
-
-    except Exception as e:
-        print(f"Community post failed (non-fatal): {e}")
+    # Send to Telegram for manual posting to Community tab
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if bot_token and chat_id:
+        try:
+            msg = f"📢 Community tab post (copy-paste this):\n\n{post_text}"
+            _req.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                data={"chat_id": chat_id, "text": msg},
+                timeout=10
+            )
+            print("Community post content sent to Telegram")
+        except Exception as e:
+            print(f"Telegram community post send failed: {e}")

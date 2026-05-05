@@ -8,7 +8,7 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update
+from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update, get_sound_attributions, get_ai_disclosure
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
@@ -81,6 +81,8 @@ print(f"Dark screen title: {dark_title}")
 # ─────────────────────────────────────────────
 # BUILD DARK SCREEN DESCRIPTION
 # ─────────────────────────────────────────────
+sound_credits = get_sound_attributions(PERSISTENT_DIR)
+ai_disclosure = get_ai_disclosure()
 description = f"""{theme} — Dark Screen Version
 
 {duration_label} of uninterrupted {primary.replace('_', ' ')} sounds for deep sleep — with a completely black screen so your device won't disturb your rest.
@@ -101,6 +103,10 @@ No ads. No interruptions. Screen stays black.
 🔔 Subscribe for new dark screen soundscapes every few days.
 
 #DarkScreen #BlackScreen #SleepSounds #BrownNoise #AmbientSounds #SleepMusic
+
+{ai_disclosure}
+
+{sound_credits}
 """
 
 # ─────────────────────────────────────────────

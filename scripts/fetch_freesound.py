@@ -13,11 +13,12 @@ IDEA_PATH = PERSISTENT_DIR / "current_idea.json"
 CACHE_DIR = BASE_DIR / "audio_samples"
 ATTRIBUTION_PATH = PERSISTENT_DIR / "audio_attributions.json"
 
-# API key from env — falls back to hardcoded for backwards compat
-API_KEY = os.environ.get("FREESOUND_API_KEY", "xmhB1xYL0d9Y5SLuN393zxVyP13vWuKanDMavIiu")
+# API key from Railway environment variable
+API_KEY = os.environ.get("FREESOUND_API_KEY", "")
 
 if not API_KEY:
-    raise RuntimeError("Missing FREESOUND_API_KEY")
+    print("Warning: FREESOUND_API_KEY not set — will use procedural audio only")
+    exit(0)
 
 HEADERS = {"Authorization": f"Token {API_KEY}"}
 
@@ -39,23 +40,30 @@ SEARCH_TERMS = {
 # ALLOWED LICENSES — matched exactly to what Freesound API returns
 # Run with DEBUG_LICENSES=1 to print actual license strings from API
 # ─────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# SAFE LICENSES ONLY
+# CC0 = no restrictions, commercial use allowed
+# BY = attribution required, commercial use allowed
+# BY-NC = commercial use NOT allowed — excluded
+# ─────────────────────────────────────────────
 ALLOWED_LICENSES = {
-    # CC0
+    # CC0 — completely free, no attribution needed
     "Creative Commons 0",
     "http://creativecommons.org/publicdomain/zero/1.0/",
     "https://creativecommons.org/publicdomain/zero/1.0/",
-    # Attribution
+    # Attribution only — commercial use allowed, must credit creator
     "Attribution",
     "http://creativecommons.org/licenses/by/3.0/",
     "http://creativecommons.org/licenses/by/4.0/",
     "https://creativecommons.org/licenses/by/3.0/",
     "https://creativecommons.org/licenses/by/4.0/",
-    # Attribution NonCommercial
-    "Attribution NonCommercial",
-    "http://creativecommons.org/licenses/by-nc/3.0/",
-    "http://creativecommons.org/licenses/by-nc/4.0/",
-    "https://creativecommons.org/licenses/by-nc/3.0/",
-    "https://creativecommons.org/licenses/by-nc/4.0/",
+    # BY-NC intentionally excluded — cannot use commercially
+}
+
+CC0_LICENSES = {
+    "Creative Commons 0",
+    "http://creativecommons.org/publicdomain/zero/1.0/",
+    "https://creativecommons.org/publicdomain/zero/1.0/",
 }
 
 
@@ -203,6 +211,126 @@ def download_sound(sound, category):
     }
 
 
+def needs_attribution(license_str):
+    """Returns True if sound requires creator credit in description."""
+    return license_str not in CC0_LICENSES
+
+
+# ─────────────────────────────────────────────
+# PIXABAY AUDIO — free for commercial use, no attribution needed
+# API docs: https://pixabay.com/api/docs/
+# ─────────────────────────────────────────────
+PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "")
+
+PIXABAY_SEARCH_TERMS = {
+    "rain": ["rain", "rain ambience", "rainfall"],
+    "river": ["river", "stream water", "creek"],
+    "thunder": ["thunder", "thunderstorm"],
+    "wind": ["wind", "breeze"],
+    "soft_wind": ["wind", "soft wind", "breeze"],
+    "fireplace": ["fireplace", "fire crackling", "campfire"],
+    "ocean_waves": ["ocean waves", "sea waves", "beach waves"],
+    "night_forest": ["forest night", "crickets", "nature night"],
+    "brown_noise": ["brown noise", "white noise"],
+}
+
+
+def search_pixabay(category, max_results=3):
+    """Search Pixabay for free commercial-use audio."""
+    if not PIXABAY_API_KEY:
+        print(f"[{category}] PIXABAY_API_KEY not set — skipping Pixabay")
+        return []
+
+    terms = PIXABAY_SEARCH_TERMS.get(category, [category.replace("_", " ")])
+
+    results = []
+    for term in terms[:2]:
+        try:
+            response = requests.get(
+                "https://pixabay.com/api/",
+                params={
+                    "key": PIXABAY_API_KEY,
+                    "q": term,
+                    "media_type": "music",
+                    "per_page": 10,
+                    "safesearch": "true",
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+            hits = response.json().get("hits", [])
+
+            for hit in hits:
+                duration = hit.get("duration", 0)
+                if duration >= MIN_DURATION:
+                    results.append({
+                        "id": hit["id"],
+                        "url": hit.get("audio", {}).get("url") or hit.get("previewURL", ""),
+                        "name": hit.get("tags", term),
+                        "duration": duration,
+                        "source_url": hit.get("pageURL", ""),
+                        "license": "Pixabay License",  # free commercial use, no attribution
+                    })
+
+        except Exception as e:
+            print(f"[{category}] Pixabay search error: {e}")
+
+    # Deduplicate by id
+    seen = set()
+    clean = []
+    for r in results:
+        if r["id"] not in seen:
+            seen.add(r["id"])
+            clean.append(r)
+
+    print(f"[{category}] Pixabay results: {len(clean)}")
+    return clean[:max_results]
+
+
+def download_pixabay_sound(sound, category):
+    """Download a Pixabay sound and convert to WAV."""
+    category_dir = CACHE_DIR / category
+    category_dir.mkdir(parents=True, exist_ok=True)
+
+    url = sound.get("url", "")
+    if not url:
+        return None
+
+    mp3_path = category_dir / f"pixabay_{sound['id']}.mp3"
+    wav_path = category_dir / f"pixabay_{sound['id']}.wav"
+
+    if not wav_path.exists():
+        if not mp3_path.exists():
+            try:
+                audio = requests.get(url, timeout=60)
+                audio.raise_for_status()
+                with open(mp3_path, "wb") as f:
+                    f.write(audio.content)
+            except Exception as e:
+                print(f"Pixabay download failed for {sound['id']}: {e}")
+                return None
+
+        try:
+            convert_to_wav(mp3_path, wav_path)
+        except Exception as e:
+            print(f"Pixabay WAV conversion failed: {e}")
+            return None
+
+    return {
+        "category": category,
+        "local_path": str(wav_path),
+        "sound_id": f"pixabay_{sound['id']}",
+        "name": sound["name"],
+        "username": "Pixabay",
+        "license": "Pixabay License",  # free commercial, no attribution needed
+        "source_url": sound["source_url"],
+        "duration": sound.get("duration"),
+        "avg_rating": None,
+        "num_ratings": None,
+        "downloads": None,
+    }
+
+
 def main():
     idea_path = IDEA_PATH if IDEA_PATH.exists() else BASE_DIR / "current_idea.json"
 
@@ -220,8 +348,22 @@ def main():
     for category in needed_categories:
         sounds = search_sounds(category)
 
+        # Fallback to Pixabay if Freesound returns nothing
         if not sounds:
-            print(f"No valid Freesound results for: {category} — will use procedural audio")
+            print(f"[{category}] No Freesound results — trying Pixabay...")
+            pixabay_sounds = search_pixabay(category)
+
+            if pixabay_sounds:
+                for sound in pixabay_sounds:
+                    downloaded = download_pixabay_sound(sound, category)
+                    if downloaded:
+                        selected.append(downloaded)
+                        if not any(item.get("sound_id") == downloaded["sound_id"] for item in attributions):
+                            attributions.append(downloaded)
+                        print(f"✓ Downloaded [{category}] from Pixabay: {downloaded['name']}")
+            else:
+                print(f"[{category}] No results from Freesound or Pixabay — will use procedural audio")
+
             continue
 
         for sound in sounds:

@@ -9,7 +9,7 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update
+from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update, get_sound_attributions, get_ai_disclosure
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
@@ -161,6 +161,8 @@ print(f"Study title: {study_title}")
 # ─────────────────────────────────────────────
 # DESCRIPTION
 # ─────────────────────────────────────────────
+sound_credits = get_sound_attributions(PERSISTENT_DIR)
+ai_disclosure = get_ai_disclosure()
 description = f"""Study With Me — Pomodoro Timer Edition 🍅
 
 {duration_label} of ambient sound with a built-in Pomodoro timer overlay.
@@ -191,6 +193,10 @@ No ads. No interruptions. Just you, your work, and the timer.
 🔔 Subscribe for new Study With Me sessions every few days.
 
 #StudyWithMe #Pomodoro #PomodoroTimer #StudyMusic #FocusMusic #StudySession #DeepWork
+
+{ai_disclosure}
+
+{sound_credits}
 """
 
 # ─────────────────────────────────────────────

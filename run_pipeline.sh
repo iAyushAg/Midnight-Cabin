@@ -76,6 +76,44 @@ fi
 echo "Persistent dir contents:"
 ls -la "$PERSISTENT_DIR"
 
+# ─────────────────────────────────────────────────────────
+# CLEANUP — remove any BY-NC licensed sounds from cache
+# These cannot be used commercially
+# ─────────────────────────────────────────────────────────
+python3 - << 'PYEOF'
+import json, os, glob
+
+attr_path = os.path.join(os.environ.get("PERSISTENT_DIR", "/data"), "audio_attributions.json")
+nc_licenses = {
+    "Attribution NonCommercial",
+    "http://creativecommons.org/licenses/by-nc/3.0/",
+    "http://creativecommons.org/licenses/by-nc/4.0/",
+    "https://creativecommons.org/licenses/by-nc/3.0/",
+    "https://creativecommons.org/licenses/by-nc/4.0/",
+}
+
+removed = 0
+if os.path.exists(attr_path):
+    with open(attr_path) as f:
+        attributions = json.load(f)
+
+    clean = []
+    for item in attributions:
+        if item.get("license") in nc_licenses:
+            local_path = item.get("local_path", "")
+            if local_path and os.path.exists(local_path):
+                os.remove(local_path)
+                removed += 1
+                print(f"Removed NC-licensed sound: {item.get('name')}")
+        else:
+            clean.append(item)
+
+    with open(attr_path, "w") as f:
+        json.dump(clean, f, indent=2)
+
+print(f"Cleaned {removed} BY-NC sounds from cache")
+PYEOF
+
 echo "Starting pipeline..."
 
 python3 scripts/collect_stats.py || echo "Stats collection skipped"
@@ -211,3 +249,4 @@ fi
 
 echo "Pipeline finished — uploaded: $VIDEO_TYPE"
 notify "✅ Midnight Cabin — $VIDEO_TYPE video uploaded successfully!"
+# Note: run_pipeline.sh already handles pipeline

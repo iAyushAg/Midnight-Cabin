@@ -8,7 +8,7 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update
+from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update, get_sound_attributions, get_ai_disclosure
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
@@ -82,6 +82,8 @@ print(f"ADHD title: {adhd_title}")
 # ─────────────────────────────────────────────
 # ADHD DESCRIPTION
 # ─────────────────────────────────────────────
+sound_credits = get_sound_attributions(PERSISTENT_DIR)
+ai_disclosure = get_ai_disclosure()
 description = f"""Brown noise and ambient sound specifically mixed for ADHD focus and deep work.
 
 {duration_label} of uninterrupted sound — no music, no beats, no sudden changes that break concentration.
@@ -107,6 +109,10 @@ No ads. No interruptions. No music — just pure focus sound.
 🔔 Subscribe for new ADHD focus sounds every few days.
 
 #ADHD #BrownNoise #FocusMusic #ADHDFocus #DeepWork #StudyMusic #BrownNoiseADHD #FocusSounds
+
+{ai_disclosure}
+
+{sound_credits}
 """
 
 # ─────────────────────────────────────────────

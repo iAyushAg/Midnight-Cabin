@@ -9,7 +9,7 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update
+from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update, get_sound_attributions, get_ai_disclosure
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
@@ -92,6 +92,8 @@ all_tags = get_full_tags(primary, layers, duration_label, "main")
 # BUILD DESCRIPTION
 # ─────────────────────────────────────────────
 chapters = generate_chapters(duration_minutes, layers, primary)
+sound_credits = get_sound_attributions(PERSISTENT_DIR)
+ai_disclosure = get_ai_disclosure()
 description = f"""{theme}
 
 {duration_label} of uninterrupted {primary.replace('_', ' ')} sounds for sleep, relaxation, and deep focus.
@@ -112,6 +114,10 @@ No ads. No interruptions. Just pure ambient sound.
 
 📌 Chapters:
 {chapters}
+
+{ai_disclosure}
+
+{sound_credits}
 
 #SleepSounds #AmbientSounds #BrownNoise #Relaxation #FocusMusic
 """
