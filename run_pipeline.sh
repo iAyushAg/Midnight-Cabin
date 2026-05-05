@@ -80,41 +80,8 @@ echo "Starting pipeline..."
 
 python3 scripts/collect_stats.py || echo "Stats collection skipped"
 
-# Hotfix: patch generate_idea.py to fix unhashable dict bug
-python3 - << 'PATCH'
-import re
-path = "scripts/generate_idea.py"
-with open(path) as f:
-    content = f.read()
-
-old = """    scored = [
-        (v, v.get("performance", {}).get("views", 0))
-        for v in history
-        if v.get("performance", {}).get("views", 0) > 0
-    ]
-    scored.sort(key=lambda x: x[1], reverse=True)
-    top_performers = [v[0] for v in scored[:3]]
-    low_performers = [v[0] for v in scored[-3:] if v[1] > 0]"""
-
-new = """    scored = [
-        (i, v.get("performance", {}).get("views", 0))
-        for i, v in enumerate(history)
-        if v.get("performance", {}).get("views", 0) > 0
-    ]
-    scored.sort(key=lambda x: x[1], reverse=True)
-    top_performers = [history[i] for i, _ in scored[:3]]
-    low_performers = [history[i] for i, v in scored[-3:] if v > 0]"""
-
-if old in content:
-    content = content.replace(old, new)
-    with open(path, "w") as f:
-        f.write(content)
-    print("Hotfix applied successfully")
-else:
-    print("Pattern not found — may already be fixed")
-PATCH
-
 python3 scripts/generate_idea.py || fail "generate_idea"
+
 python3 scripts/generate_visual.py || echo "Visual generation skipped"
 
 python3 scripts/fetch_freesound.py || echo "Freesound fetch skipped"
@@ -154,9 +121,10 @@ ffmpeg -y \
     -loop 1 -i video/bg.jpg \
     -stream_loop -1 -i audio/brown_noise.wav \
     -t "$DURATION_SECONDS" \
-    -vf "format=yuv420p" \
+    -vf "scale=1380:776,crop=1280:720:'(iw-ow)/2*sin(t/300)+(iw-ow)/2':'(ih-oh)/2',format=yuv420p" \
+    -af "equalizer=f=8000:width_type=o:width=2:g=-6,equalizer=f=100:width_type=o:width=2:g=2" \
     -c:v libx264 -preset ultrafast -tune stillimage -crf 28 \
-    -c:a aac -b:a 128k \
+    -c:a aac -b:a 192k \
     -ar 44100 \
     -r 1 \
     -movflags +faststart \
