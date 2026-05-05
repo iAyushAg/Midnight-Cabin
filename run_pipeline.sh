@@ -121,7 +121,7 @@ ffmpeg -y \
     -loop 1 -i video/bg.jpg \
     -stream_loop -1 -i audio/brown_noise.wav \
     -t "$DURATION_SECONDS" \
-    -vf "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720,format=yuv420p" \
+    -vf "format=yuv420p" \
     -c:v libx264 -preset ultrafast -tune stillimage -crf 28 \
     -c:a aac -b:a 128k \
     -ar 44100 \

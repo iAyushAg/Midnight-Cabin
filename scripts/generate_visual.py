@@ -64,5 +64,25 @@ if "results" in data and len(data["results"]) > 0:
 
     print("Downloaded image from Unsplash:", image_url)
     print("Photo by:", pick["user"]["name"])
+
+    # Resize to exactly 1280x720 immediately after download
+    # This prevents ffmpeg from having to scale a 36MP image frame by frame
+    from PIL import Image as PILImage
+    with PILImage.open(OUTPUT_PATH) as img:
+        img = img.convert("RGB")
+        w, h = img.size
+        # Crop to 16:9 first
+        target_ratio = 16 / 9
+        if w / h > target_ratio:
+            new_w = int(h * target_ratio)
+            left = (w - new_w) // 2
+            img = img.crop((left, 0, left + new_w, h))
+        else:
+            new_h = int(w / target_ratio)
+            top = (h - new_h) // 2
+            img = img.crop((0, top, w, top + new_h))
+        img = img.resize((1280, 720), PILImage.LANCZOS)
+        img.save(OUTPUT_PATH, "JPEG", quality=85)
+    print("Resized image to 1280x720")
 else:
     raise Exception("No image found from Unsplash")
