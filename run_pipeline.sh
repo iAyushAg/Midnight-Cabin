@@ -173,84 +173,49 @@ fi
 # ─────────────────────────────────────────────────────────
 mkdir -p output
 
-# Build video filter based on primary category
-build_vf() {
-    local primary="$1"
-    local base_vf="scale=1380:776,crop=1280:720:'(iw-ow)/2*sin(t/300)+(iw-ow)/2':'(ih-oh)/2'"
+# ─────────────────────────────────────────────────────────
 
-    # Scene anchor text — first 8 seconds
-    local scene_text=$(python3 - << PYEOF
-import json, os
-path = os.path.join(os.environ.get("PERSISTENT_DIR", "/data"), "current_idea.json")
-if not os.path.exists(path):
-    path = "current_idea.json"
-with open(path) as f:
-    idea = json.load(f)
-theme = idea.get("theme", "Ambient Soundscape")
-duration = idea.get("duration_minutes", 480)
-label = "10 Hours" if duration >= 600 else "8 Hours"
-# Clean theme for drawtext
-clean = theme.replace("'", "").replace(":", "").replace(",", "")[:40]
-print(f"{clean} | {label} | No Ads")
-PYEOF
-)
+mkdir -p output
 
-    local text_vf="drawtext=text='${scene_text}':fontsize=22:fontcolor=white@0.8:x=40:y=h-th-40:enable='between(t,0,8)'"
+# ─────────────────────────────────────────────────────────
+# RENDER VIDEO
+# Uses Replicate animated clip if available (bg_animated.mp4)
+# Falls back to static image with slow pan
+# ─────────────────────────────────────────────────────────
+ANIMATED_VIDEO="video/bg_animated.mp4"
 
-    # Rain animation for rain/thunder/river/ocean themes
-    local rain_vf=""
-    if [[ "$primary" == "rain" || "$primary" == "thunder" || "$primary" == "river" || "$primary" == "ocean_waves" ]]; then
-        # Diagonal rain streaks using geq — very lightweight at 1fps
-        rain_vf=",geq=lum='lum(X,Y)':cb='cb(X,Y)':cr='cr(X,Y)+10*gt(random(1)*1000,995)*lt(mod(X*0.7+Y+T*60,180),2)'"
-    fi
-
-    echo "${base_vf},${text_vf}${rain_vf},format=yuv420p"
-}
-
-VF=$(build_vf "$PRIMARY")
-echo "Video filter built for: $PRIMARY"
-
-echo "Rendering main video..."
-
-if [ -n "$FIRE_OVERLAY" ]; then
-    # Composite fire overlay for fireplace themes
-    echo "Rendering with fire overlay..."
+if [ -f "$ANIMATED_VIDEO" ]; then
+    echo "Using Replicate animated video..."
+    # Loop the animated clip for full duration
     ffmpeg -y \
-        -loop 1 -i video/bg.jpg \
-        -stream_loop -1 -i "$FIRE_OVERLAY" \
+        -stream_loop -1 -i "$ANIMATED_VIDEO" \
         -stream_loop -1 -i audio/brown_noise.wav \
         -t "$DURATION_SECONDS" \
-        -filter_complex \
-            "[0:v]scale=1380:776,crop=1280:720:'(iw-ow)/2*sin(t/300)+(iw-ow)/2':'(ih-oh)/2'[bg];
-             [1:v]scale=320:240,format=yuva420p,colorchannelmixer=aa=0.45[fire];
-             [bg][fire]overlay=W-w-40:H-h-40[video];
-             [video]format=yuv420p[out]" \
-        -map "[out]" \
-        -map 2:a \
+        -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
         -af "equalizer=f=8000:width_type=o:width=2:g=-6,equalizer=f=100:width_type=o:width=2:g=2" \
-        -c:v libx264 -preset ultrafast -tune stillimage -crf 28 \
-        -c:a aac -b:a 192k \
-        -ar 44100 -r 1 \
+        -c:v libx264 -preset ultrafast -crf 28 \
+        -c:a aac -b:a 192k -ar 44100 -r 24 \
         -movflags +faststart \
         output/video.mp4 || fail "ffmpeg render"
+    echo "Video rendered from animated clip"
+
 else
-    # Standard render
+    echo "No animated clip — using static image with slow pan..."
     ffmpeg -y \
         -loop 1 -i video/bg.jpg \
         -stream_loop -1 -i audio/brown_noise.wav \
         -t "$DURATION_SECONDS" \
-        -vf "$VF" \
+        -vf "scale=1380:776,crop=1280:720:'(iw-ow)/2*sin(t/300)+(iw-ow)/2':'(ih-oh)/2',format=yuv420p" \
         -af "equalizer=f=8000:width_type=o:width=2:g=-6,equalizer=f=100:width_type=o:width=2:g=2" \
-        -c:v libx264 -preset ultrafast -tune stillimage -crf 28 \
-        -c:a aac -b:a 192k \
-        -ar 44100 -r 1 \
+        -c:v libx264 -preset ultrafast -crf 28 \
+        -c:a aac -b:a 192k -ar 44100 -r 24 \
         -movflags +faststart \
         output/video.mp4 || fail "ffmpeg render"
+    echo "Video rendered from static image"
 fi
 
 echo "Video created:"; ls -lh output/
 
-# ─────────────────────────────────────────────────────────
 # ROTATION — main → adhd → dark_screen → study_with_me
 # ─────────────────────────────────────────────────────────
 VIDEO_TYPE=$(python3 - << 'PYEOF'

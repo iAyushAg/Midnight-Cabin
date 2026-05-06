@@ -1,15 +1,23 @@
 """
-generate_visual.py — AI image generation for Midnight Cabins
+generate_visual.py
 
-Generates a cinematic, atmospheric scene using DALL-E 3
-matching the current video theme (rain, fireplace, river, etc.)
-Style inspired by Cozy Rain channel — warm, detailed, painterly interiors
+Pipeline:
+1. Generate base image via Pollinations.ai (free)
+   - DALL-E 3 if OPENAI_API_KEY available
+   - Pollinations.ai as free fallback
+2. Animate via Replicate Wan I2V (image to video)
+   - Produces a 3-5 second looping video clip
+   - ffmpeg loops this clip for the full 8/10 hour video
+3. Save animated clip to video/bg_animated.mp4
+   - Falls back to static image if Replicate fails
 """
 
 import json
 import os
+import time
 import requests
 from pathlib import Path
+from urllib.parse import quote
 
 BASE_DIR = Path(__file__).parent.parent
 PERSISTENT_DIR = os.environ.get("PERSISTENT_DIR", "/data")
@@ -20,7 +28,8 @@ if not os.path.exists(IDEA_PATH):
 
 VIDEO_DIR = BASE_DIR / "video"
 VIDEO_DIR.mkdir(exist_ok=True)
-OUTPUT_PATH = VIDEO_DIR / "bg.jpg"
+BG_IMAGE = VIDEO_DIR / "bg.jpg"
+BG_VIDEO = VIDEO_DIR / "bg_animated.mp4"
 
 # ─────────────────────────────────────────────
 # LOAD IDEA
@@ -29,219 +38,359 @@ with open(IDEA_PATH) as f:
     idea = json.load(f)
 
 primary = idea.get("audio_strategy", {}).get("primary_category", "rain")
-mood = idea.get("audio_strategy", {}).get("mood", "calm")
+secondary = idea.get("audio_strategy", {}).get("secondary_category", "")
 theme = idea.get("theme", "Cozy Cabin Ambience")
 layers = idea.get("sound_layers", [])
 
 print(f"Generating visual for: {theme} ({primary})")
 
 # ─────────────────────────────────────────────
-# SCENE PROMPTS per primary category
-# Cozy Rain style — warm, cinematic, detailed interior
-# Always includes a window showing weather outside
-# Always has warm light sources (fireplace, lanterns, candles)
+# IMAGE PROMPTS
+# Fixed layout: fireplace bottom-right, windows top-centre
+# Rain/fire explicitly described so AI bakes them in
 # ─────────────────────────────────────────────
 SCENE_PROMPTS = {
     "rain": (
-        "A cozy attic bedroom in a rustic wooden cabin at night. "
-        "Large arched windows showing heavy rain falling outside, "
-        "rain droplets streaking down the glass. "
-        "A stone fireplace with a crackling fire on the right. "
-        "Warm lanterns hanging from exposed wooden beams. "
-        "A plush bed with rumpled blankets, leather armchair, bookshelves. "
-        "A steaming cup of tea on a side table. "
-        "Warm amber and deep blue colour palette. "
-        "Photorealistic digital painting, cinematic lighting, ultra detailed, "
-        "cozy atmosphere, no people."
+        "cozy attic bedroom rustic wooden cabin at night, "
+        "large arched window top centre covered in rain streaks and water droplets on glass, "
+        "dark stormy rainy sky and trees barely visible through heavily rain-streaked window, "
+        "stone fireplace bottom right with tall bright orange crackling flames and glowing red embers, "
+        "warm amber lanterns hanging from exposed wooden ceiling beams, "
+        "plush bed with rumpled blankets centre, leather armchair left, "
+        "bookshelves filled with books, steaming mug on wooden side table, "
+        "deep blue rainy atmosphere outside warm amber glow inside, "
+        "cinematic digital painting, photorealistic, ultra detailed, no people, no text, no watermark"
     ),
     "fireplace": (
-        "A grand stone fireplace in a rustic mountain lodge at midnight. "
-        "Roaring fire with bright orange flames and glowing embers. "
-        "Wooden cabin interior with exposed log walls. "
-        "Snow visible through a frost-edged window in the background. "
-        "A leather armchair positioned close to the hearth. "
-        "Warm amber firelight casting long shadows across the room. "
-        "Pine cones, stacked wood, iron fire tools nearby. "
-        "Photorealistic digital painting, cinematic lighting, ultra detailed, "
-        "cozy atmosphere, no people."
+        "grand rustic stone fireplace bottom right with tall roaring orange and yellow flames, "
+        "bright glowing red and orange embers, fire clearly visible with dancing flame tips, "
+        "warm amber firelight spilling across stone floor and log cabin walls, "
+        "mountain lodge interior midnight, frosted window top left showing snowfall outside, "
+        "leather armchair positioned close to hearth, exposed log walls, "
+        "stacked firewood and pine cones beside fireplace, "
+        "deep warm amber and dark shadow contrast, "
+        "cinematic digital painting, photorealistic, ultra detailed, no people, no text, no watermark"
     ),
     "river": (
-        "A wooden cabin porch overlooking a misty mountain river at night. "
-        "The river flowing gently between mossy rocks in the moonlight. "
-        "Soft lantern light spilling through the cabin window. "
-        "Pine forest on both sides of the river, fog rising from the water. "
-        "A rocking chair on the porch with a wool blanket. "
-        "Stars visible through breaks in the clouds above. "
-        "Cool blue and warm amber colour palette. "
-        "Photorealistic digital painting, cinematic lighting, ultra detailed, "
-        "peaceful atmosphere, no people."
+        "wooden cabin porch overlooking moonlit mountain river at night, "
+        "river water flowing with visible ripples between mossy rocks in lower half of image, "
+        "silver moonlight reflecting on moving water surface, mist rising from river, "
+        "cabin interior with warm lantern light visible through window top right, "
+        "pine forest on both banks, small stone fireplace glowing bottom right corner, "
+        "cool moonlit blue and warm amber contrast, "
+        "cinematic digital painting, photorealistic, ultra detailed, no people, no text, no watermark"
     ),
     "ocean_waves": (
-        "A cliffside cottage bedroom overlooking a stormy ocean at night. "
-        "Large windows showing waves crashing against dark rocks below. "
-        "Moonlight breaking through storm clouds over the sea. "
-        "A cozy reading nook with a lit candle and open book. "
-        "Weathered wooden interior, nautical details, rope and driftwood accents. "
-        "Deep navy blue and warm candlelight colour palette. "
-        "Photorealistic digital painting, cinematic lighting, ultra detailed, "
-        "moody coastal atmosphere, no people."
+        "cliffside stone cottage bedroom at stormy night, "
+        "large window top centre showing ocean waves crashing on dark rocks below, "
+        "white foam spray on wave crests, turbulent dark water, moonlight breaking through clouds, "
+        "stone fireplace with small bright fire bottom right, lit candle on windowsill, "
+        "weathered wood interior with nautical rope and driftwood details, "
+        "deep navy and candlelight amber palette, "
+        "cinematic digital painting, photorealistic, ultra detailed, no people, no text, no watermark"
     ),
     "soft_wind": (
-        "A Japanese-inspired wooden cabin in a bamboo forest at twilight. "
-        "Shoji screen windows with silhouettes of bamboo swaying in the breeze. "
-        "A simple interior with a futon, paper lanterns glowing softly. "
-        "Cherry blossom petals drifting past the window from outside. "
-        "A small zen garden visible through the open sliding door. "
-        "Pale lavender, deep green, and warm gold colour palette. "
-        "Photorealistic digital painting, cinematic lighting, ultra detailed, "
-        "tranquil atmosphere, no people."
+        "japanese wooden cabin in bamboo forest at twilight, "
+        "shoji screen windows with bamboo grove visible outside swaying in gentle breeze, "
+        "cherry blossom petals drifting in the air outside, "
+        "warm paper lanterns glowing inside, simple futon on tatami mat, "
+        "small stone fireplace with glowing embers bottom right, "
+        "pale lavender sky deep green bamboo warm gold lantern light, "
+        "cinematic digital painting, photorealistic, ultra detailed, no people, no text, no watermark"
     ),
     "night_forest": (
-        "A glass-walled treehouse deep in an ancient forest at midnight. "
-        "Massive oak and pine trees surrounding the structure, moonlight filtering through. "
-        "Bioluminescent mushrooms glowing softly on the forest floor below. "
-        "Interior with a hammock, fairy lights strung across wooden beams. "
-        "An owl perched on a branch just outside the glass. "
-        "Fireflies visible in the forest darkness. "
-        "Deep forest green, midnight blue, and soft gold colour palette. "
-        "Photorealistic digital painting, cinematic lighting, ultra detailed, "
-        "magical atmosphere, no people."
+        "magical glass-walled treehouse deep in ancient forest at midnight, "
+        "massive oak and pine trees surrounding structure, silver moonlight filtering through glass walls, "
+        "fireplace with warm orange glowing fire bottom right corner clearly visible, "
+        "fairy lights strung across exposed wooden beams, hammock in corner, "
+        "bioluminescent blue-green mushrooms glowing on dark forest floor below, "
+        "fireflies as tiny golden lights floating in dark forest, "
+        "deep forest green midnight blue warm gold palette, "
+        "cinematic digital painting, photorealistic, ultra detailed, no people, no text, no watermark"
     ),
     "brown_noise": (
-        "A modern minimalist study in a converted loft apartment at night. "
-        "Floor to ceiling industrial windows with rain streaking down the glass. "
-        "City lights blurred and glowing in the background beyond the rain. "
-        "A clean desk with a warm lamp, open notebook, and steaming coffee. "
-        "Exposed brick walls, dark wood shelving with books. "
-        "A single candle burning on the windowsill. "
-        "Warm amber, charcoal, and deep navy colour palette. "
-        "Photorealistic digital painting, cinematic lighting, ultra detailed, "
-        "focus atmosphere, no people."
+        "modern minimalist loft study at night, "
+        "floor to ceiling industrial windows top half covered in rain streaks showing blurred city lights, "
+        "warm desk lamp casting golden circle of light on clean desk, "
+        "open notebook and steaming coffee mug on desk, "
+        "small stone fireplace with bright orange fire bottom right, "
+        "single candle flame on windowsill, "
+        "exposed brick walls dark wood shelving filled with books, "
+        "warm amber charcoal and deep navy palette, "
+        "cinematic digital painting, photorealistic, ultra detailed, no people, no text, no watermark"
     ),
-}
-
-# Add weather-specific enhancements
-WEATHER_ADDITIONS = {
-    "rain": ", rain on windows, wet glass reflections, dramatic rain outside",
-    "thunder": ", lightning visible through windows, dramatic storm outside",
-    "fireplace": ", fireplace flames, glowing embers, warm fire light",
-    "ocean_waves": ", crashing waves visible, sea spray, stormy ocean",
-    "soft_wind": ", gentle breeze, swaying plants, soft movement",
-    "night_forest": ", moonlight through trees, forest sounds, peaceful night",
-    "brown_noise": ", rain on city windows, urban night lights, focus atmosphere",
-    "river": ", flowing water visible, misty river, moonlight on water",
+    "thunder": (
+        "cozy rustic cabin living room during violent thunderstorm at night, "
+        "large windows top showing lightning illuminating dark stormy sky, "
+        "heavy rain streaming down window glass, dramatic lightning bolt visible outside, "
+        "roaring stone fireplace bottom right with tall bright orange flames and glowing embers, "
+        "thick wool blankets on armchair, dramatic contrast of storm outside and warmth inside, "
+        "deep midnight blue dramatic lightning and warm amber firelight, "
+        "cinematic digital painting, photorealistic, ultra detailed, no people, no text, no watermark"
+    ),
 }
 
 base_prompt = SCENE_PROMPTS.get(
     primary,
-    (
-        "A cozy wooden cabin interior at night. Warm fireplace light. "
-        "Rain visible through large windows. Atmospheric and cinematic. "
-        "Photorealistic digital painting, ultra detailed, no people."
-    )
+    "cozy wooden cabin interior night, fireplace bottom right, "
+    "large window showing rain outside, warm amber light, "
+    "cinematic digital art, ultra detailed, no people, no text"
 )
 
-# Add secondary layer context
-secondary = idea.get("audio_strategy", {}).get("secondary_category", "")
 if secondary and secondary != primary:
-    addition = WEATHER_ADDITIONS.get(secondary, "")
-    base_prompt += addition
+    additions = {
+        "rain": ", rain visible on windows",
+        "fireplace": ", fireplace flames bottom right",
+        "thunder": ", lightning through windows",
+        "river": ", river visible outside",
+        "ocean_waves": ", ocean waves through window",
+    }
+    base_prompt += additions.get(secondary, "")
 
-full_prompt = base_prompt + (
-    " Style: highly detailed digital art, reminiscent of cozy cabin artwork, "
-    "warm cinematic photography, ultra realistic textures, "
-    "perfect for a YouTube sleep ambience channel background, "
-    "16:9 aspect ratio, no text, no watermarks, no people."
+style_suffix = ", masterpiece, best quality, 8k uhd, cinematic lighting, award winning digital art"
+full_prompt = base_prompt + style_suffix
+
+print(f"Prompt: {full_prompt[:100]}...")
+
+# ─────────────────────────────────────────────
+# ANIMATION PROMPT per theme
+# Describes what should move in the scene
+# ─────────────────────────────────────────────
+# Animation prompts — describe ONLY the motion, not the scene
+# The image itself is the visual anchor for Wan I2V
+# Short and specific works better than long descriptions
+ANIMATION_PROMPTS = {
+    "rain": (
+        "heavy raindrops streaming down window glass, "
+        "rain falling outside visible through window, "
+        "fireplace fire flickering with dancing orange flames and glowing red embers, "
+        "warm amber light from fire pulsing gently on walls, "
+        "all furniture books and objects completely motionless"
+    ),
+    "fireplace": (
+        "fireplace fire burning with tall flickering orange and yellow flames, "
+        "bright glowing embers crackling, "
+        "warm amber firelight dancing on stone walls and floor, "
+        "wisps of smoke rising slowly from flames, "
+        "all furniture and objects completely motionless"
+    ),
+    "river": (
+        "river water flowing smoothly with rippling surface catching moonlight, "
+        "gentle mist rising from water surface, "
+        "fireplace fire flickering with orange flames, "
+        "moonlight shimmer on moving water, "
+        "cabin interior completely still and motionless"
+    ),
+    "ocean_waves": (
+        "ocean waves rolling and breaking on rocks below, "
+        "white foam and spray on wave crests, "
+        "water surface heaving with swells, "
+        "fireplace fire flickering orange and warm, "
+        "candlelight flame gently wavering, "
+        "all interior objects completely still"
+    ),
+    "soft_wind": (
+        "bamboo gently swaying and rustling in soft breeze, "
+        "cherry blossom petals slowly drifting through air, "
+        "paper lanterns swaying slightly, casting moving light, "
+        "interior objects completely still"
+    ),
+    "night_forest": (
+        "fireflies slowly drifting and blinking in dark forest, "
+        "fireplace fire flickering with warm orange glow, "
+        "fairy lights gently twinkling, "
+        "tree branches barely moving, "
+        "interior completely still"
+    ),
+    "brown_noise": (
+        "raindrops streaming down window glass, "
+        "blurred city lights glimmering through wet glass, "
+        "fireplace fire flickering with small orange flames, "
+        "candle flame wavering gently, "
+        "desk and all objects completely motionless"
+    ),
+    "thunder": (
+        "heavy rain streaming violently down window glass, "
+        "brief bright lightning flash outside illuminating stormy sky, "
+        "fireplace fire blazing with tall vigorous flames, "
+        "dramatic flickering firelight on walls, "
+        "all interior objects motionless"
+    ),
+}
+
+animation_prompt = ANIMATION_PROMPTS.get(
+    primary,
+    "subtle ambient motion, fireplace flickering, atmospheric movement"
 )
 
-print(f"DALL-E prompt length: {len(full_prompt)} chars")
+# ─────────────────────────────────────────────
+# STEP 1 — GENERATE BASE IMAGE
+# ─────────────────────────────────────────────
+def generate_image():
+    # Try DALL-E 3 first
+    openai_key = os.environ.get("OPENAI_API_KEY", "")
+    if openai_key:
+        try:
+            print("Trying DALL-E 3...")
+            resp = requests.post(
+                "https://api.openai.com/v1/images/generations",
+                headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
+                json={"model": "dall-e-3", "prompt": full_prompt, "n": 1,
+                      "size": "1792x1024", "quality": "standard", "style": "vivid"},
+                timeout=120
+            )
+            if resp.status_code == 200:
+                img_url = resp.json()["data"][0]["url"]
+                img = requests.get(img_url, timeout=60)
+                img.raise_for_status()
+                with open(BG_IMAGE, "wb") as f:
+                    f.write(img.content)
+                print("DALL-E 3 image saved")
+                return True
+            else:
+                print(f"DALL-E failed ({resp.status_code}) — trying Pollinations")
+        except Exception as e:
+            print(f"DALL-E error: {e}")
+
+    # Pollinations.ai (free)
+    try:
+        print("Calling Pollinations.ai...")
+        encoded = quote(full_prompt)
+        seed = abs(hash(theme)) % 999999
+        url = (f"https://image.pollinations.ai/prompt/{encoded}"
+               f"?width=1280&height=720&seed={seed}&model=flux&nologo=true&enhance=true")
+        resp = requests.get(url, timeout=120, stream=True)
+        resp.raise_for_status()
+        with open(BG_IMAGE, "wb") as f:
+            for chunk in resp.iter_content(8192):
+                f.write(chunk)
+        size = os.path.getsize(BG_IMAGE)
+        if size < 10000:
+            print(f"Pollinations returned tiny file ({size}b) — may be error")
+            return False
+        print(f"Pollinations image saved: {size//1024}KB")
+        return True
+    except Exception as e:
+        print(f"Pollinations failed: {e}")
+
+    # Unsplash fallback
+    unsplash_key = os.environ.get("UNSPLASH_ACCESS_KEY", "")
+    if unsplash_key:
+        try:
+            queries = {
+                "rain": "dark rainy cabin window night cozy",
+                "fireplace": "cozy fireplace cabin night warm",
+                "river": "mountain river night forest cabin",
+                "ocean_waves": "ocean waves night cliff cottage",
+                "soft_wind": "peaceful forest night cabin lantern",
+                "night_forest": "dark forest night moonlight trees",
+                "brown_noise": "dark study room night city rain",
+                "thunder": "stormy night cabin lightning window",
+            }
+            query = queries.get(primary, f"cozy cabin {primary} night")
+            resp = requests.get(
+                f"https://api.unsplash.com/photos/random?query={query}&orientation=landscape&client_id={unsplash_key}",
+                timeout=30
+            )
+            resp.raise_for_status()
+            img = requests.get(resp.json()["urls"]["regular"], timeout=60)
+            with open(BG_IMAGE, "wb") as f:
+                f.write(img.content)
+            print("Unsplash fallback saved")
+            return True
+        except Exception as e:
+            print(f"Unsplash failed: {e}")
+
+    return False
+
+image_ok = generate_image()
+
+# Resize to 1280x720
+if image_ok and os.path.exists(BG_IMAGE):
+    try:
+        from PIL import Image
+        img = Image.open(BG_IMAGE).convert("RGB")
+        img = img.resize((1280, 720), Image.LANCZOS)
+        img.save(BG_IMAGE, "JPEG", quality=95)
+        print(f"Resized to 1280x720")
+    except Exception as e:
+        print(f"PIL resize failed: {e}")
 
 # ─────────────────────────────────────────────
-# CALL DALL-E 3
+# STEP 2 — ANIMATE via Replicate Wan I2V
 # ─────────────────────────────────────────────
-api_key = os.environ.get("OPENAI_API_KEY", "")
+replicate_key = os.environ.get("REPLICATE_API_KEY", "")
 
-if not api_key:
-    print("OPENAI_API_KEY not set — falling back to Unsplash")
-    # Fallback to Unsplash
-    UNSPLASH_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "")
-    QUERIES = {
-        "rain": "dark rainy cabin window night cozy",
-        "fireplace": "cozy fireplace cabin night warm",
-        "river": "mountain river night forest cabin",
-        "ocean_waves": "ocean waves night cliff cottage",
-        "soft_wind": "peaceful forest night cabin lantern",
-        "night_forest": "dark forest night moonlight trees",
-        "brown_noise": "dark study room night city rain",
-    }
-    query = QUERIES.get(primary, f"cozy cabin {primary} night dark atmospheric")
-    url = f"https://api.unsplash.com/photos/random?query={query}&orientation=landscape&client_id={UNSPLASH_KEY}"
-    resp = requests.get(url, timeout=30)
-    resp.raise_for_status()
-    img_url = resp.json()["urls"]["regular"]
-    img = requests.get(img_url, timeout=60)
-    with open(OUTPUT_PATH, "wb") as f:
-        f.write(img.content)
-    print(f"Fallback Unsplash image saved: {OUTPUT_PATH}")
+if not replicate_key:
+    print("REPLICATE_API_KEY not set — using static image")
+elif not image_ok:
+    print("No base image — skipping animation")
 else:
-    print("Calling DALL-E 3...")
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "dall-e-3",
-        "prompt": full_prompt,
-        "n": 1,
-        "size": "1792x1024",  # closest to 16:9 widescreen
-        "quality": "standard",  # use "hd" for better quality at $0.08/image
-        "style": "vivid",  # vivid = more dramatic and cinematic
-    }
+    try:
+        import base64
+        print("Animating with Replicate Wan I2V...")
 
-    resp = requests.post(
-        "https://api.openai.com/v1/images/generations",
-        headers=headers,
-        json=payload,
-        timeout=120
-    )
+        # Read image as base64
+        with open(BG_IMAGE, "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode()
+        img_data_url = f"data:image/jpeg;base64,{img_b64}"
 
-    if resp.status_code != 200:
-        print(f"DALL-E failed: {resp.status_code} {resp.text[:300]}")
-        raise RuntimeError("DALL-E 3 image generation failed")
+        # Using replicate Python client
 
-    image_url = resp.json()["data"][0]["url"]
-    print(f"DALL-E image URL received")
+        # Use replicate Python client with explicit token
+        import replicate as _replicate
+        client = _replicate.Client(api_token=replicate_key)
 
-    # Download the image
-    img = requests.get(image_url, timeout=60)
-    img.raise_for_status()
+        # wan-2.2-i2v-fast: cheapest + fastest, 10M+ runs, ~$0.04/video
+        print("Sending to Replicate (wan-video/wan-2.2-i2v-fast)...")
 
-    with open(OUTPUT_PATH, "wb") as f:
-        f.write(img.content)
+        with open(BG_IMAGE, "rb") as img_file:
+            output = client.run(
+                "wan-video/wan-2.2-i2v-fast",
+                input={
+                    "image": img_file,
+                    "prompt": animation_prompt,
+                    "negative_prompt": (
+                        "camera pan, camera zoom, camera rotation, camera movement, "
+                        "rain indoors, rain on bed, rain on ceiling, rain on furniture, rain on floor, "
+                        "snow indoors, water indoors, "
+                        "people, faces, hands, human figures, "
+                        "text, watermark, logo, "
+                        "distortion, warping, morphing, melting, "
+                        "flickering artifacts, color shifts, overexposure, "
+                        "blurry, low quality, pixelated"
+                    ),
+                    "num_frames": 81,   # minimum for wan-2.2-i2v-fast (~5s at 16fps)
+                    "frames_per_second": 16,
+                }
+            )
 
-    print(f"DALL-E 3 image saved: {OUTPUT_PATH}")
+        # output is a URL string
+        video_url = str(output) if not isinstance(output, list) else str(output[0])
+        print(f"Animation complete — downloading from: {video_url[:60]}...")
 
-# ─────────────────────────────────────────────
-# RESIZE TO 1280x720 for ffmpeg
-# ─────────────────────────────────────────────
-try:
-    from PIL import Image
-    img = Image.open(OUTPUT_PATH)
-    img = img.convert("RGB")
-    img = img.resize((1280, 720), Image.LANCZOS)
-    img.save(OUTPUT_PATH, "JPEG", quality=95)
-    print(f"Image resized to 1280x720: {OUTPUT_PATH}")
-except Exception as e:
-    print(f"PIL resize failed: {e} — ffmpeg will handle scaling")
+        vid = requests.get(video_url, timeout=120)
+        vid.raise_for_status()
+        with open(BG_VIDEO, "wb") as f:
+            f.write(vid.content)
+        print(f"Animated video saved: {os.path.getsize(BG_VIDEO)//1024}KB")
 
-# Save visual metadata for pipeline
+    except Exception as e:
+        print(f"Replicate animation failed: {e} — using static image")
+
+# Save metadata
 visual_meta = {
     "primary": primary,
     "theme": theme,
-    "prompt_used": full_prompt[:200],
-    "source": "dalle3" if api_key else "unsplash",
+    "has_animation": os.path.exists(str(BG_VIDEO)),
+    "source": "dalle3" if os.environ.get("OPENAI_API_KEY") else "pollinations",
 }
 with open(os.path.join(PERSISTENT_DIR, "current_visual.json"), "w") as f:
     json.dump(visual_meta, f, indent=2)
+
+if os.path.exists(str(BG_VIDEO)):
+    print(f"✅ Animated video ready: {BG_VIDEO}")
+else:
+    print(f"✅ Static image ready: {BG_IMAGE} (no animation)")
 
 print("Visual generation complete")
