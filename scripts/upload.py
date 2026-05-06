@@ -94,23 +94,27 @@ all_tags = get_full_tags(primary, layers, duration_label, "main")
 chapters = generate_chapters(duration_minutes, layers, primary)
 sound_credits = get_sound_attributions(PERSISTENT_DIR)
 ai_disclosure = get_ai_disclosure()
-description = f"""{theme}
+# Get storyline from idea (scene-setting story)
+storyline = idea.get("storyline", "")
 
-{duration_label} of uninterrupted {primary.replace('_', ' ')} sounds for sleep, relaxation, and deep focus.
+description = f"""{storyline}
+
+{duration_label} of uninterrupted {primary.replace("_", " ")} sounds for deep sleep, relaxation, and focused work. No ads. No interruptions. No music.
 
 ✨ Perfect for:
-• Falling asleep faster
-• Study sessions & deep work
-• Meditation & mindfulness
-• Reading & unwinding
-• Background ambience
+• Falling asleep faster on a restless night
+• Study sessions, deep work, and ADHD focus
+• Meditation, mindfulness, and unwinding
+• Reading, journaling, and creative work
+• Background ambience while working from home
+
+Whether you're in London, New York, Sydney, or Mumbai — let this play quietly in the background tonight.
 
 🎵 Sound layers: {", ".join(layers)}
 🌙 Mood: {mood.capitalize()}
+⏱ Duration: {duration_label}
 
-No ads. No interruptions. Just pure ambient sound.
-
-🔔 Subscribe for new ambient soundscapes every few days.
+🔔 Subscribe @midnightcabins — new soundscapes uploaded daily.
 
 📌 Chapters:
 {chapters}
@@ -119,7 +123,7 @@ No ads. No interruptions. Just pure ambient sound.
 
 {sound_credits}
 
-#SleepSounds #AmbientSounds #BrownNoise #Relaxation #FocusMusic
+#SleepSounds #AmbientSounds #BrownNoise #Relaxation #FocusMusic #DeepSleep #SleepMusic #RainSounds #StudyMusic #ADHDFocus
 """
 
 # ─────────────────────────────────────────────

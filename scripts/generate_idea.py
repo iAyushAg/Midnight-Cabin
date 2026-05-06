@@ -172,10 +172,10 @@ Include "{duration_label}" in the title (not "10 Hours" if it's 8 Hours).
 {json.dumps(trending_keywords[:10], indent=2)}
 
 === TOP PERFORMING VIDEOS ===
-{json.dumps([{"title": str(v.get("title", "")), "views": int(v.get("performance", {}).get("views", 0))} for v in top_performers], indent=2)}
+{json.dumps([{{"title": v.get("title"), "views": v.get("performance", {{}}).get("views", 0)}} for v in top_performers], indent=2)}
 
 === LOW PERFORMING VIDEOS ===
-{json.dumps([{"title": str(v.get("title", "")), "views": int(v.get("performance", {}).get("views", 0))} for v in low_performers], indent=2)}
+{json.dumps([{{"title": v.get("title"), "views": v.get("performance", {{}}).get("views", 0)}} for v in low_performers], indent=2)}
 
 === SUGGESTED PRIMARY CATEGORY ===
 {suggested_primary}
@@ -187,13 +187,18 @@ Rules:
 - Use 2-3 sound layers that work well together
 - Always include brown_noise unless it conflicts
 - Keep it calm, cozy, dark, suitable for sleep or focus
+- Title MUST include a specific scene location (e.g. "Mountain Cabin", "Forest Hideaway", "Lakeside Retreat", "Attic Bedroom") — NOT just sound names
 - Title must be SEO-friendly, under 90 characters, include "{duration_label}"
+- Title format: "[Specific Scene] | [Sound Description] | [Duration]"
+- Example titles: "Rainy Night in a Mountain Cabin | 10 Hours Deep Sleep", "Fireplace Crackling in a Forest Lodge | 8 Hours"
+- storyline: Write a 2-3 sentence atmospheric scene-setting story in second person (you are there). This appears at the top of the video description to immerse the viewer.
 - Return ONLY valid JSON — no markdown, no explanation, no duplicate keys
 
 JSON structure (return exactly this, no extra fields outside it):
 {{
   "theme": "...",
   "title": "...",
+  "storyline": "...",
   "sound_layers": ["brown_noise", "..."],
   "visual": "...",
   "duration_minutes": {next_duration_minutes},

@@ -2,7 +2,8 @@ numpy
 scipy
 google-api-python-client
 google-auth-oauthlib
-openai
+google-auth
 requests
 Pillow
 anthropic
+certifi
