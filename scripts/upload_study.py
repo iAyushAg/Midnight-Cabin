@@ -9,7 +9,11 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update, get_sound_attributions, get_ai_disclosure
+from youtube_utils import (
+    generate_chapters, get_full_tags, pin_comment, post_community_update,
+    get_sound_attributions, get_ai_disclosure, get_production_note,
+    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists
+)
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
@@ -64,6 +68,9 @@ layers = idea.get("sound_layers", [])
 primary = idea.get("audio_strategy", {}).get("primary_category", "brown_noise")
 mood = idea.get("audio_strategy", {}).get("mood", "calm")
 theme = idea.get("theme", "")
+is_flagship = idea.get("is_flagship") or idea.get("content_tier") == "flagship"
+production_note = get_production_note("study_with_me", is_flagship)
+quality_summary = get_quality_summary(idea)
 duration_seconds = duration_minutes * 60
 
 # ─────────────────────────────────────────────
@@ -194,6 +201,10 @@ No mid-roll interruptions. No vocals. Just you, your work, and the timer.
 
 #StudyWithMe #Pomodoro #PomodoroTimer #StudyMusic #FocusMusic #StudySession #DeepWork
 
+{production_note}
+
+{quality_summary}
+
 {ai_disclosure}
 
 {sound_credits}
@@ -256,20 +267,10 @@ if os.path.exists(THUMBNAIL_FILE):
     except Exception as e:
         print(f"Thumbnail failed (non-fatal): {e}")
 
-# PLAYLIST
-try:
-    youtube.playlistItems().insert(
-        part="snippet",
-        body={
-            "snippet": {
-                "playlistId": STUDY_PLAYLIST_ID,
-                "resourceId": {"kind": "youtube#video", "videoId": video_id}
-            }
-        }
-    ).execute()
-    print(f"Added to Study With Me playlist")
-except Exception as e:
-    print(f"Playlist failed (non-fatal): {e}")
+# PLAYLIST FUNNELS — study + intent playlists
+playlist_ids = get_playlist_ids_for_idea(idea, "study_with_me")
+added_playlist_ids = add_video_to_playlists(youtube, video_id, playlist_ids)
+playlist_id = added_playlist_ids[0] if added_playlist_ids else (playlist_ids[0] if playlist_ids else STUDY_PLAYLIST_ID)
 
 # HISTORY
 record = {
@@ -279,7 +280,12 @@ record = {
     "type": "study_with_me",
     "sound_layers": layers,
     "duration_minutes": duration_minutes,
-    "playlist_id": STUDY_PLAYLIST_ID,
+    "audio_strategy": idea.get("audio_strategy", {}),
+    "content_tier": idea.get("content_tier", "standard"),
+    "is_flagship": bool(is_flagship),
+    "flagship_package": idea.get("flagship_package", {}),
+    "playlist_id": playlist_id,
+    "playlist_ids": added_playlist_ids,
     "uploaded_at": datetime.now().isoformat(),
     "privacy_status": "public",
     "performance": {}
@@ -298,5 +304,5 @@ with open(HISTORY_FILE, "w") as f:
 print(f"Study video saved to history: {video_id}")
 
 # Pin comment and community post
-pin_comment(youtube, video_id, primary, duration_label, layers)
+pin_comment(youtube, video_id, primary, duration_label, layers, idea, "study_with_me")
 post_community_update(youtube, video_id, title if "title" in dir() else study_title if "study_title" in dir() else adhd_title if "adhd_title" in dir() else dark_title, primary, duration_label)

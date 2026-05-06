@@ -61,7 +61,9 @@ def strip_emojis(text):
     )
     return emoji_pattern.sub("", text).strip()
 
-print(f"Generating Short for: {theme} ({primary})")
+is_flagship = idea.get("is_flagship") or idea.get("content_tier") == "flagship"
+flagship_shorts = (idea.get("flagship_package", {}) or {}).get("shorts", [])
+print(f"Generating Short for: {theme} ({primary}) | flagship={is_flagship}")
 
 # ─────────────────────────────────────────────
 # HOOK ROTATION — cycles POV → Educational → Contrast
@@ -116,6 +118,9 @@ hook_text = hook_maps[hook_style].get(
     primary,
     f"Save this sound for tonight"
 )
+if is_flagship and flagship_shorts:
+    # Use the generated flagship package as the creative spine for Shorts.
+    hook_text = str(flagship_shorts[0]).split(":", 1)[-1].strip()[:52] or hook_text
 
 # Load voiceover rotation index
 VO_ROTATION_FILE = os.path.join(PERSISTENT_DIR, "short_vo_rotation.json")
@@ -185,6 +190,9 @@ variants = voiceover_maps[hook_style].get(
     [f"{theme}. {duration_label} of uninterrupted ambient sound. Full version on Midnight Cabin."]
 )
 voiceover_text = variants[vo_index % len(variants)]
+if is_flagship and flagship_shorts:
+    short_seed = str(flagship_shorts[vo_index % len(flagship_shorts)]).strip()
+    voiceover_text = f"{short_seed}. {idea.get('first_30_seconds', 'Let the room settle slowly.')} {random.choice(SOFT_CTA)}"
 
 cta_text = random.choice([
     "Save this for tonight",
@@ -467,6 +475,8 @@ short_meta = {
     "duration_label": duration_label,
     "hook_style": hook_style,
     "hook_text": hook_text,
+    "is_flagship": bool(is_flagship),
+    "flagship_short_plan": flagship_shorts,
     "voiceover_text": voiceover_text,
     "has_voiceover": has_voiceover,
     "start_offset": START_OFFSET,

@@ -8,7 +8,11 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update, get_sound_attributions, get_ai_disclosure
+from youtube_utils import (
+    generate_chapters, get_full_tags, pin_comment, post_community_update,
+    get_sound_attributions, get_ai_disclosure, get_production_note,
+    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists
+)
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
@@ -57,6 +61,9 @@ layers = idea.get("sound_layers", [])
 primary = idea.get("audio_strategy", {}).get("primary_category", "brown_noise")
 mood = idea.get("audio_strategy", {}).get("mood", "calm")
 theme = idea.get("theme", "")
+is_flagship = idea.get("is_flagship") or idea.get("content_tier") == "flagship"
+production_note = get_production_note("adhd", is_flagship)
+quality_summary = get_quality_summary(idea)
 
 # ─────────────────────────────────────────────
 # ADHD TITLE — always angle toward focus/ADHD
@@ -109,6 +116,10 @@ No mid-roll interruptions. No vocals. No sudden changes — just steady focus so
 🔔 Subscribe for new ADHD focus sounds every few days.
 
 #ADHD #BrownNoise #FocusMusic #ADHDFocus #DeepWork #StudyMusic #BrownNoiseADHD #FocusSounds
+
+{production_note}
+
+{quality_summary}
 
 {ai_disclosure}
 
@@ -172,20 +183,10 @@ if os.path.exists(THUMBNAIL_FILE):
     except Exception as e:
         print(f"Thumbnail failed (non-fatal): {e}")
 
-# PLAYLIST
-try:
-    youtube.playlistItems().insert(
-        part="snippet",
-        body={
-            "snippet": {
-                "playlistId": ADHD_PLAYLIST_ID,
-                "resourceId": {"kind": "youtube#video", "videoId": video_id}
-            }
-        }
-    ).execute()
-    print(f"Added to ADHD playlist")
-except Exception as e:
-    print(f"Playlist failed (non-fatal): {e}")
+# PLAYLIST FUNNELS — ADHD/focus + intent playlists
+playlist_ids = get_playlist_ids_for_idea(idea, "adhd")
+added_playlist_ids = add_video_to_playlists(youtube, video_id, playlist_ids)
+playlist_id = added_playlist_ids[0] if added_playlist_ids else (playlist_ids[0] if playlist_ids else ADHD_PLAYLIST_ID)
 
 # HISTORY
 record = {
@@ -195,7 +196,12 @@ record = {
     "type": "adhd",
     "sound_layers": layers,
     "duration_minutes": duration_minutes,
-    "playlist_id": ADHD_PLAYLIST_ID,
+    "audio_strategy": idea.get("audio_strategy", {}),
+    "content_tier": idea.get("content_tier", "standard"),
+    "is_flagship": bool(is_flagship),
+    "flagship_package": idea.get("flagship_package", {}),
+    "playlist_id": playlist_id,
+    "playlist_ids": added_playlist_ids,
     "uploaded_at": datetime.now().isoformat(),
     "privacy_status": "public",
     "performance": {}
@@ -214,5 +220,5 @@ with open(HISTORY_FILE, "w") as f:
 print(f"ADHD video saved to history: {video_id}")
 
 # Pin comment and community post
-pin_comment(youtube, video_id, primary, duration_label, layers)
+pin_comment(youtube, video_id, primary, duration_label, layers, idea, "adhd")
 post_community_update(youtube, video_id, title if "title" in dir() else study_title if "study_title" in dir() else adhd_title if "adhd_title" in dir() else dark_title, primary, duration_label)

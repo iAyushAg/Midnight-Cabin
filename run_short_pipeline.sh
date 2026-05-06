@@ -73,6 +73,11 @@ fi
 # Generate the Short
 python3 scripts/generate_short.py || fail "generate_short"
 
+# Retention / audio quality gate for Shorts
+if [ "${SKIP_QUALITY_GATE:-0}" != "1" ] && [ -f "output/short.mp4" ]; then
+    python3 scripts/quality_gate.py --video output/short.mp4 --type short --expected-minutes 1 --sample-seconds 60 || fail "quality_gate_short"
+fi
+
 # Upload the Short
 python3 scripts/upload_short.py || fail "upload_short"
 

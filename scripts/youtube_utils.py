@@ -184,20 +184,148 @@ def get_full_tags(primary, layers, duration_label, video_type="main"):
     return final
 
 
-def pin_comment(youtube, video_id, primary, duration_label, sound_layers):
-    """Post and pin a comment on the video."""
 
-    # Build comment based on theme
-    if "rain" in sound_layers:
-        comment = f"🌧️ The rain builds gradually over the first 10 minutes — let it wash everything away. {duration_label} of pure sleep sound, no mid-roll interruptions and no sudden sounds. Sleep well 🌙"
-    elif "fireplace" in sound_layers:
-        comment = f"🔥 The fire crackles gently throughout — imagine you're in a cozy cabin far from everything. {duration_label} of warmth, no sudden sounds. Sleep well 🌙"
-    elif "brown_noise" in primary:
-        comment = f"🧠 Brown noise works best at low-medium volume — let it fill the room, not overwhelm it. {duration_label} of pure focus/sleep sound. No sudden sounds 🌙"
-    elif "river" in sound_layers:
-        comment = f"🌊 The river flows steadily throughout — consistent, calming, uninterrupted. {duration_label} of nature sound. No sudden sounds 🌙"
+# ─────────────────────────────────────────────
+# CONTENT PACKAGING / MONETIZATION HELPERS
+# ─────────────────────────────────────────────
+
+# Hardcoded Midnight Cabin playlist IDs.
+# These are used immediately after upload to place each video in the relevant playlists.
+PLAYLISTS = {
+    "deep_sleep": "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",
+    "dark_screen": "PL1C0d7IpxX4tlvxdvXDlQmIHhs0VwxEKi",
+    "brown_noise_adhd": "PL1C0d7IpxX4urDAwNHXeOWiow5xOTsye3",
+    "study_music": "PL1C0d7IpxX4vaGtoLf3zbjOTSIjY_cWVE",
+    "focus_study": "PL1C0d7IpxX4voVewbgJZoQjizPugYaM0n",
+}
+
+
+def _add_playlist(ids, seen, playlist_key):
+    """Append a known playlist ID once, preserving order."""
+    playlist_id = PLAYLISTS.get(playlist_key, "")
+    if playlist_id and playlist_id not in seen:
+        ids.append(playlist_id)
+        seen.add(playlist_id)
+
+def get_production_note(video_type="main", is_flagship=False):
+    """Human-curation signal for descriptions and comments."""
+    prefix = "Flagship production note" if is_flagship else "Production note"
+    if video_type == "dark_screen":
+        body = "This dark-screen soundscape is reviewed for steady volume, smooth looping, no vocals, no visual distractions, and no sudden sounds for overnight playback."
+    elif video_type == "study_with_me":
+        body = "This focus session is reviewed for steady background sound, timer readability, no vocals, and low-distraction pacing for long work blocks."
+    elif video_type == "adhd":
+        body = "This focus soundscape is reviewed for stable low-frequency texture, no sudden transitions, and a steady background that many listeners prefer for concentration."
     else:
-        comment = f"🌙 Let this play quietly in the background — {duration_label} of uninterrupted ambient sound. No mid-roll interruptions, no sudden sounds. Sleep well ✨"
+        body = "This soundscape is reviewed for steady volume, smooth loops, no vocals, no sudden sounds, and overnight listening comfort."
+    return f"{prefix}:\n{body}"
+
+
+def get_quality_summary(idea=None):
+    """Short visible promise that reinforces the listening experience."""
+    idea = idea or {}
+    first = idea.get("first_30_seconds", "Gentle fade-in, clear atmosphere, and no sudden sounds.")
+    hook = idea.get("retention_hook", "Stable, low-distraction ambience for long listening sessions.")
+    unique = idea.get("unique_angle", "A specific scene and sound mix rather than a generic ambient loop.")
+    return (
+        "Why this one is different:\n"
+        f"• Scene: {unique}\n"
+        f"• First 30 seconds: {first}\n"
+        f"• Long-play reason: {hook}"
+    )
+
+
+def get_playlist_ids_for_idea(idea, video_type="main"):
+    """Return the hardcoded Midnight Cabin playlist IDs relevant to this upload.
+
+    Mapping:
+    - Normal sleep ambience -> Deep Sleep Sound
+    - Dark-screen uploads -> Dark Screen + Deep Sleep Sound
+    - Brown-noise / ADHD uploads -> Brownnoise for ADHD + Focus & Study
+    - Study uploads -> Study Music + Focus & Study
+    - Any long/focus/brown-noise crossover can be added to multiple relevant playlists.
+    """
+    idea = idea or {}
+    layers = set(idea.get("sound_layers", []) or [])
+    primary = idea.get("audio_strategy", {}).get("primary_category", "")
+    title_blob = " ".join([
+        str(idea.get("title", "")),
+        str(idea.get("theme", "")),
+        str(idea.get("visual", "")),
+        " ".join(str(layer) for layer in layers),
+    ]).lower()
+
+    ids = []
+    seen = set()
+
+    is_brown_noise = primary == "brown_noise" or "brown_noise" in layers or "brown noise" in title_blob
+    is_focus = any(term in title_blob for term in [
+        "focus", "study", "work", "productivity", "pomodoro", "adhd", "concentration", "deep work"
+    ])
+
+    if video_type == "dark_screen" or "dark screen" in title_blob or "black screen" in title_blob:
+        _add_playlist(ids, seen, "dark_screen")
+        _add_playlist(ids, seen, "deep_sleep")
+    elif video_type == "study_with_me":
+        _add_playlist(ids, seen, "study_music")
+        _add_playlist(ids, seen, "focus_study")
+    elif video_type == "adhd":
+        _add_playlist(ids, seen, "brown_noise_adhd")
+        _add_playlist(ids, seen, "focus_study")
+    else:
+        # Default long ambience uploads belong in the main sleep playlist.
+        _add_playlist(ids, seen, "deep_sleep")
+
+    # Add crossover playlists when the content clearly matches them.
+    if is_brown_noise:
+        _add_playlist(ids, seen, "brown_noise_adhd")
+    if is_focus:
+        _add_playlist(ids, seen, "focus_study")
+
+    # Safety fallback: every uploaded video gets at least one playlist.
+    if not ids:
+        _add_playlist(ids, seen, "deep_sleep")
+
+    return ids
+
+def add_video_to_playlists(youtube, video_id, playlist_ids):
+    """Add a video to multiple playlists. Non-fatal per playlist."""
+    added = []
+    for playlist_id in playlist_ids:
+        try:
+            youtube.playlistItems().insert(
+                part="snippet",
+                body={
+                    "snippet": {
+                        "playlistId": playlist_id,
+                        "resourceId": {"kind": "youtube#video", "videoId": video_id},
+                    }
+                },
+            ).execute()
+            print(f"Added to playlist: {playlist_id}")
+            added.append(playlist_id)
+        except Exception as e:
+            print(f"Playlist assignment failed for {playlist_id} (non-fatal): {e}")
+    return added
+
+def pin_comment(youtube, video_id, primary, duration_label, sound_layers, idea=None, video_type="main"):
+    """Post and pin a comment on the video with a human-curation signal."""
+
+    idea = idea or {}
+    is_flagship = idea.get("is_flagship") or idea.get("content_tier") == "flagship"
+    note = get_production_note(video_type, is_flagship).replace("\n", " ")
+
+    # Build comment based on theme.
+    if "rain" in sound_layers:
+        comment = f"🌧️ The rain builds gradually over the first 10 minutes — let it wash everything away. {duration_label} of pure sleep sound, no mid-roll interruptions and no sudden sounds. Sleep well 🌙\n\n{note}"
+    elif "fireplace" in sound_layers:
+        comment = f"🔥 The fire crackles gently throughout — imagine you're in a cozy cabin far from everything. {duration_label} of warmth, no sudden sounds. Sleep well 🌙\n\n{note}"
+    elif primary == "brown_noise" or "brown_noise" in sound_layers:
+        comment = f"🧠 Brown noise works best at low-medium volume — let it fill the room, not overwhelm it. {duration_label} of pure focus/sleep sound. No sudden sounds 🌙\n\n{note}"
+    elif "river" in sound_layers:
+        comment = f"🌊 The river flows steadily throughout — consistent, calming, uninterrupted. {duration_label} of nature sound. No sudden sounds 🌙\n\n{note}"
+    else:
+        comment = f"🌙 Let this play quietly in the background — {duration_label} of uninterrupted ambient sound. No mid-roll interruptions, no sudden sounds. Sleep well ✨\n\n{note}"
 
     try:
         # Post comment
@@ -225,7 +353,6 @@ def pin_comment(youtube, video_id, primary, duration_label, sound_layers):
     except Exception as e:
         print(f"Pin comment failed (non-fatal): {e}")
         return None
-
 
 def post_community_update(youtube, video_id, title, primary, duration_label):
     """

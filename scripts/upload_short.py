@@ -61,7 +61,9 @@ def strip_emojis(text):
     )
     return emoji_pattern.sub("", text).strip()
 
-print(f"Generating Short for: {theme} ({primary})")
+is_flagship = idea.get("is_flagship") or idea.get("content_tier") == "flagship"
+flagship_shorts = (idea.get("flagship_package", {}) or {}).get("shorts", [])
+print(f"Generating Short for: {theme} ({primary}) | flagship={is_flagship}")
 
 # ─────────────────────────────────────────────
 # HOOK ROTATION — cycles POV → Educational → Contrast
@@ -549,6 +551,8 @@ short_meta = {
     "duration_label": duration_label,
     "hook_style": hook_style,
     "hook_text": hook_text,
+    "is_flagship": bool(is_flagship),
+    "flagship_short_plan": flagship_shorts,
     "voiceover_text": voiceover_text,
     "has_voiceover": has_voiceover,
     "start_offset": START_OFFSET,

@@ -8,7 +8,11 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update, get_sound_attributions, get_ai_disclosure
+from youtube_utils import (
+    generate_chapters, get_full_tags, pin_comment, post_community_update,
+    get_sound_attributions, get_ai_disclosure, get_production_note,
+    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists
+)
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
@@ -58,6 +62,9 @@ layers = idea.get("sound_layers", [])
 primary = idea.get("audio_strategy", {}).get("primary_category", "brown_noise")
 mood = idea.get("audio_strategy", {}).get("mood", "calm")
 theme = idea.get("theme", "")
+is_flagship = idea.get("is_flagship") or idea.get("content_tier") == "flagship"
+production_note = get_production_note("dark_screen", is_flagship)
+quality_summary = get_quality_summary(idea)
 
 # ─────────────────────────────────────────────
 # BUILD DARK SCREEN TITLE
@@ -103,6 +110,10 @@ No mid-roll interruptions. No vocals. No sudden sounds. Screen stays black.
 🔔 Subscribe for new dark screen soundscapes every few days.
 
 #DarkScreen #BlackScreen #SleepSounds #BrownNoise #AmbientSounds #SleepMusic
+
+{production_note}
+
+{quality_summary}
 
 {ai_disclosure}
 
@@ -180,24 +191,11 @@ if os.path.exists(THUMBNAIL_FILE):
         print(f"Thumbnail upload failed (non-fatal): {e}")
 
 # ─────────────────────────────────────────────
-# PLAYLIST ASSIGNMENT — dark screen playlist
+# PLAYLIST FUNNELS — dark screen + intent playlists
 # ─────────────────────────────────────────────
-try:
-    youtube.playlistItems().insert(
-        part="snippet",
-        body={
-            "snippet": {
-                "playlistId": DARK_SCREEN_PLAYLIST_ID,
-                "resourceId": {
-                    "kind": "youtube#video",
-                    "videoId": video_id
-                }
-            }
-        }
-    ).execute()
-    print(f"Added to dark screen playlist: {DARK_SCREEN_PLAYLIST_ID}")
-except Exception as e:
-    print(f"Playlist assignment failed (non-fatal): {e}")
+playlist_ids = get_playlist_ids_for_idea(idea, "dark_screen")
+added_playlist_ids = add_video_to_playlists(youtube, video_id, playlist_ids)
+playlist_id = added_playlist_ids[0] if added_playlist_ids else (playlist_ids[0] if playlist_ids else DARK_SCREEN_PLAYLIST_ID)
 
 # ─────────────────────────────────────────────
 # SAVE TO HISTORY
@@ -210,7 +208,11 @@ record = {
     "sound_layers": layers,
     "duration_minutes": duration_minutes,
     "audio_strategy": idea.get("audio_strategy", {}),
-    "playlist_id": DARK_SCREEN_PLAYLIST_ID,
+    "content_tier": idea.get("content_tier", "standard"),
+    "is_flagship": bool(is_flagship),
+    "flagship_package": idea.get("flagship_package", {}),
+    "playlist_id": playlist_id,
+    "playlist_ids": added_playlist_ids,
     "uploaded_at": datetime.now().isoformat(),
     "privacy_status": "public",
     "performance": {}
@@ -231,5 +233,5 @@ print(f"Dark screen video saved to history: {video_id}")
 print(f"Title: {dark_title}")
 
 # Pin comment and community post
-pin_comment(youtube, video_id, primary, duration_label, layers)
+pin_comment(youtube, video_id, primary, duration_label, layers, idea, "dark_screen")
 post_community_update(youtube, video_id, title if "title" in dir() else study_title if "study_title" in dir() else adhd_title if "adhd_title" in dir() else dark_title, primary, duration_label)

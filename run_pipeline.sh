@@ -216,6 +216,18 @@ fi
 
 echo "Video created:"; ls -lh output/
 
+# ─────────────────────────────────────────────────────────
+# RETENTION / AUDIO QUALITY GATE
+# Stops broken renders and writes /data/quality_gate_report.json.
+# Set STRICT_QUALITY_GATE=1 to fail on warnings too.
+# Set SKIP_QUALITY_GATE=1 to bypass during experiments.
+# ─────────────────────────────────────────────────────────
+if [ "${SKIP_QUALITY_GATE:-0}" != "1" ]; then
+    python3 scripts/quality_gate.py --video output/video.mp4 --type main --expected-minutes "$DURATION_MINUTES" || fail "quality_gate"
+else
+    echo "Quality gate skipped by SKIP_QUALITY_GATE=1"
+fi
+
 # ROTATION — main → adhd → dark_screen → study_with_me
 # ─────────────────────────────────────────────────────────
 VIDEO_TYPE=$(python3 - << 'PYEOF'
@@ -261,6 +273,9 @@ elif [ "$VIDEO_TYPE" = "dark_screen" ]; then
         -c:a aac -b:a 192k -ar 44100 -r 1 \
         -movflags +faststart \
         output/video_dark.mp4 || fail "dark screen render"
+    if [ "${SKIP_QUALITY_GATE:-0}" != "1" ]; then
+        python3 scripts/quality_gate.py --video output/video_dark.mp4 --type dark_screen --expected-minutes "$DURATION_MINUTES" || fail "quality_gate_dark"
+    fi
     python3 scripts/upload_dark.py || fail "upload"
 
 elif [ "$VIDEO_TYPE" = "adhd" ]; then

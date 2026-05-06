@@ -9,7 +9,11 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from youtube_utils import generate_chapters, get_full_tags, pin_comment, post_community_update, get_sound_attributions, get_ai_disclosure
+from youtube_utils import (
+    generate_chapters, get_full_tags, pin_comment, post_community_update,
+    get_sound_attributions, get_ai_disclosure, get_production_note,
+    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists
+)
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
@@ -24,20 +28,6 @@ CLIENT_SECRET_FILE = os.path.join(PERSISTENT_DIR, "client_secret.json")
 HISTORY_FILE = os.path.join(PERSISTENT_DIR, "video_history.json")
 VIDEO_FILE = os.path.join(BASE_DIR, "output", "video.mp4")
 THUMBNAIL_FILE = os.path.join(BASE_DIR, "thumbnail.jpg")
-
-# ─────────────────────────────────────────────
-# PLAYLIST MAP — category → playlist ID
-# ─────────────────────────────────────────────
-PLAYLIST_MAP = {
-    "rain":         "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
-    "river":        "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
-    "ocean_waves":  "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
-    "fireplace":    "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
-    "thunder":      "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
-    "night_forest": "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
-    "soft_wind":    "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k",  # Deep Sleep Sounds
-    "brown_noise":  "PL1C0d7IpxX4voVewbgJZoQjizPugYaM0n",  # Focus & Study
-}
 
 # Best performing video ID for end screen
 BEST_VIDEO_ID = "xRj8cDUHCxg"
@@ -96,10 +86,15 @@ sound_credits = get_sound_attributions(PERSISTENT_DIR)
 ai_disclosure = get_ai_disclosure()
 # Get storyline from idea (scene-setting story)
 storyline = idea.get("storyline", "")
+is_flagship = idea.get("is_flagship") or idea.get("content_tier") == "flagship"
+production_note = get_production_note("main", is_flagship)
+quality_summary = get_quality_summary(idea)
 
 description = f"""{storyline}
 
 {duration_label} of uninterrupted {primary.replace("_", " ")} sounds for deep sleep, relaxation, and focused work. No mid-roll interruptions, no vocals, no sudden sounds.
+
+{quality_summary}
 
 Best for:
 • Falling asleep faster on a restless night
@@ -115,6 +110,8 @@ Whether you're in London, New York, Sydney, or Mumbai — let this play quietly 
 ⏱ Duration: {duration_label}
 
 Subscribe @midnightcabins for new Midnight Cabin soundscapes.
+
+{production_note}
 
 📌 Chapters:
 {chapters}
@@ -168,28 +165,13 @@ else:
     print("No thumbnail found, skipping")
 
 # ─────────────────────────────────────────────
-# PLAYLIST ASSIGNMENT
-# Auto-assigns to the right playlist based on primary category
-# Falls back to Deep Sleep Sounds if category not found
+# PLAYLIST FUNNELS
+# Adds each video to multiple intent-based playlists: sleep, focus, dark screen, storms, 10h, flagship, etc.
+# Playlist IDs can be overridden with PLAYLIST_* env vars in youtube_utils.py.
 # ─────────────────────────────────────────────
-playlist_id = PLAYLIST_MAP.get(primary, "PL1C0d7IpxX4s5ZUMMTZShPiEdcc7_mY6k")
-
-try:
-    youtube.playlistItems().insert(
-        part="snippet",
-        body={
-            "snippet": {
-                "playlistId": playlist_id,
-                "resourceId": {
-                    "kind": "youtube#video",
-                    "videoId": video_id
-                }
-            }
-        }
-    ).execute()
-    print(f"Added to playlist: {playlist_id}")
-except Exception as e:
-    print(f"Playlist assignment failed (non-fatal): {e}")
+playlist_ids = get_playlist_ids_for_idea(idea, "main")
+added_playlist_ids = add_video_to_playlists(youtube, video_id, playlist_ids)
+playlist_id = added_playlist_ids[0] if added_playlist_ids else (playlist_ids[0] if playlist_ids else "")
 
 # ─────────────────────────────────────────────
 # END SCREENS
@@ -214,6 +196,10 @@ record = {
     "learning_reason": idea.get("learning_reason"),
     "thumbnail_variant": idea.get("thumbnail_variant", "A"),
     "playlist_id": playlist_id,
+    "playlist_ids": added_playlist_ids,
+    "content_tier": idea.get("content_tier", "standard"),
+    "is_flagship": bool(is_flagship),
+    "flagship_package": idea.get("flagship_package", {}),
     "uploaded_at": datetime.now().isoformat(),
     "privacy_status": "public",
     "thumbnail_uploaded": os.path.exists(THUMBNAIL_FILE),
@@ -236,7 +222,7 @@ print(f"Thumbnail variant: {record['thumbnail_variant']}")
 print(f"Playlist: {playlist_id}")
 
 # Post a comment on the video (pin manually in YouTube Studio)
-pin_comment(youtube, video_id, primary, duration_label, layers)
+pin_comment(youtube, video_id, primary, duration_label, layers, idea, "main")
 
 # Post community tab update
 post_community_update(youtube, video_id, idea["title"], primary, duration_label)

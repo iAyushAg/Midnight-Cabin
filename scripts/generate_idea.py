@@ -27,6 +27,9 @@ client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 # 5. Descriptions and thumbnails get stronger scene metadata downstream.
 BROWN_NOISE_TARGET_RATIO = float(os.environ.get("BROWN_NOISE_TARGET_RATIO", "0.55"))
 RECENT_WINDOW = int(os.environ.get("CONTENT_RECENT_WINDOW", "20"))
+FLAGSHIP_INTERVAL_DAYS = int(os.environ.get("FLAGSHIP_INTERVAL_DAYS", "7"))
+FORCE_FLAGSHIP = os.environ.get("FORCE_FLAGSHIP", "").lower() in {"1", "true", "yes"}
+DISABLE_FLAGSHIP = os.environ.get("DISABLE_FLAGSHIP", "").lower() in {"1", "true", "yes"}
 
 CONTENT_BUCKETS = [
     "rain", "river", "thunder", "fireplace", "ocean_waves",
@@ -100,6 +103,25 @@ def should_use_brown_noise(primary, recent_items):
     return ratio < BROWN_NOISE_TARGET_RATIO
 
 
+def should_make_flagship(history):
+    """Create one higher-effort hero concept roughly once per week."""
+    if DISABLE_FLAGSHIP:
+        return False
+    if FORCE_FLAGSHIP:
+        return True
+    cutoff = datetime.now() - timedelta(days=FLAGSHIP_INTERVAL_DAYS)
+    for item in reversed(history):
+        if not (item.get("is_flagship") or item.get("content_tier") == "flagship"):
+            continue
+        try:
+            uploaded_at = datetime.fromisoformat(str(item.get("uploaded_at", "")))
+        except Exception:
+            continue
+        if uploaded_at >= cutoff:
+            return False
+    return True
+
+
 def safe_parse_json(text):
     """Robustly extract and parse the first valid JSON object from model text."""
     text = re.sub(r"```json|```", "", text).strip()
@@ -131,6 +153,8 @@ def safe_parse_json(text):
 
 history = load_json(HISTORY_PATH, [])
 recent_results = history[-RECENT_WINDOW:]
+is_flagship = should_make_flagship(history)
+content_tier = "flagship" if is_flagship else "standard"
 
 recent_titles = {normalize_title(v.get("title", "")) for v in recent_results}
 recent_scenes = {extract_scene_from_title(v.get("title", "")) for v in recent_results}
@@ -180,6 +204,7 @@ secondary_hint = random.choice(SECONDARY_BY_PRIMARY.get(suggested_primary, ["sof
 print("Suggested primary category:", suggested_primary)
 print("Scene hint:", scene_hint)
 print("Include brown noise:", include_brown_noise)
+print("Content tier:", content_tier)
 
 # Video length: alternate between 8h and 10h.
 last_duration = history[-1].get("duration_minutes", 480) if history else 480
@@ -294,6 +319,11 @@ Brown noise rule: {brown_noise_rule}
 
 Generate ONE high-quality, unique video idea.
 
+=== CONTENT TIER ===
+This upload is: {content_tier.upper()}
+If FLAGSHIP, make it feel like a weekly hero asset: more cinematic, more specific, more memorable, and strong enough to create 3 Shorts from.
+If STANDARD, keep it high quality but simpler and repeatable.
+
 Hard rules:
 - Do NOT repeat or closely paraphrase any recent title.
 - Do NOT reuse the same sound combination as a recent video.
@@ -321,6 +351,16 @@ JSON structure (return exactly this, no extra fields outside it):
   "sound_layers": ["...", "..."],
   "visual": "specific, cinematic visual scene with lighting and location details",
   "thumbnail_text": "2-4 word emotional thumbnail phrase",
+  "content_tier": "{content_tier}",
+  "is_flagship": {str(is_flagship).lower()},
+  "flagship_package": {{
+    "hero_reason": "If flagship, why this deserves flagship treatment. If standard, say standard upload.",
+    "shorts": [
+      "Short idea 1: emotional POV",
+      "Short idea 2: calming observation",
+      "Short idea 3: save/use-case angle"
+    ]
+  }},
   "duration_minutes": {next_duration_minutes},
   "audio_strategy": {{
     "primary_category": "{suggested_primary}",
@@ -366,6 +406,16 @@ if not idea:
         "sound_layers": layer_list[:3],
         "visual": f"dark cozy {scene_hint.lower()}, cinematic low light, no people, slow atmospheric movement",
         "thumbnail_text": scene_hint.split()[0].upper() + " CABIN",
+        "content_tier": content_tier,
+        "is_flagship": is_flagship,
+        "flagship_package": {
+            "hero_reason": "Weekly flagship concept" if is_flagship else "Standard upload",
+            "shorts": [
+                "Emotional POV of the room",
+                "Soft observation about steady sound",
+                "Save this for tonight angle",
+            ],
+        },
         "duration_minutes": next_duration_minutes,
         "audio_strategy": {
             "primary_category": suggested_primary,
@@ -423,6 +473,16 @@ idea.setdefault("storyline", "You are inside a quiet cabin as the outside world 
 idea.setdefault("unique_angle", "A more specific scene and sound mix than a generic ambient loop.")
 idea.setdefault("first_30_seconds", "Gentle fade-in, immediate atmosphere, and no sudden sounds.")
 idea.setdefault("retention_hook", "Stable, low-distraction sound designed for long listening sessions.")
+idea["content_tier"] = content_tier
+idea["is_flagship"] = bool(is_flagship)
+idea.setdefault("flagship_package", {
+    "hero_reason": "Weekly flagship concept" if is_flagship else "Standard upload",
+    "shorts": [
+        "Emotional POV of the scene",
+        "Soft credible observation about the sound",
+        "Save this for tonight/use later angle",
+    ],
+})
 idea.setdefault("thumbnail_text", extract_scene_from_title(idea["title"]).upper()[:22])
 
 os.makedirs(PERSISTENT_DIR, exist_ok=True)
