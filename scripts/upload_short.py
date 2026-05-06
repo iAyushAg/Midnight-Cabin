@@ -1,5 +1,5 @@
 """
-generate_short.py — YouTube Shorts generator for Midnight Cabins
+generate_short.py — YouTube Shorts generator for Midnight Cabin
 
 Strategy:
 - Rotates 3 hook styles: POV emotional / Educational / Contrast reveal
@@ -96,13 +96,13 @@ POV_HOOKS = {
 }
 
 EDUCATIONAL_HOOKS = {
-    "rain":         "Rain sounds lower cortisol by up to 40% 🌧️",
+    "rain":         "Rain can make the room feel steadier 🌧️",
     "fireplace":    "Fireplace sounds reduce anxiety — here's why 🔥",
-    "river":        "Running water sounds are scientifically proven to reduce stress 🌊",
-    "ocean_waves":  "Ocean waves match the brain's sleep frequency exactly 🌊",
+    "river":        "Running water gives the mind a steady pattern 🌊",
+    "ocean_waves":  "Ocean waves create a slow predictable rhythm 🌊",
     "soft_wind":    "Pink noise in wind sounds improves deep sleep quality 🍃",
     "night_forest": "Nature sounds reset your nervous system in minutes 🌲",
-    "brown_noise":  "Brown noise changes brain activity in ADHD — here's what it sounds like 🧠",
+    "brown_noise":  "Brown noise makes distractions feel softer 🧠",
 }
 
 CONTRAST_HOOKS = {
@@ -128,10 +128,10 @@ def generate_short_content(primary, hook_style, duration_label, theme, mood):
 
     style_descriptions = {
         "pov": "POV (point of view) — second person, immersive, emotional. Starts with 'POV:'. Makes the viewer feel they are IN the scene.",
-        "educational": "Educational — one surprising scientific fact about how this sound affects the brain or sleep. Conversational, warm, not clinical.",
+        "educational": "Educational — one soft, credible observation about how this sound affects the brain or sleep. Conversational, warm, not clinical.",
     }
 
-    prompt = f"""You are writing content for a YouTube Shorts video for the channel Midnight Cabins.
+    prompt = f"""You are writing content for a YouTube Shorts video for the channel Midnight Cabin.
 
 The channel posts long ambient sleep/focus soundscape videos. This Short is a 60-second preview.
 
@@ -140,7 +140,7 @@ Primary sound: {primary.replace('_', ' ')}
 Mood: {mood}
 Duration of full video: {duration_label}
 Hook style: {style_descriptions.get(hook_style, hook_style)}
-Generate a fresh, unique version each time — vary the angle, the specific scientific fact used, and the phrasing.
+Generate a fresh, unique version each time — vary the angle, the specific credible observation used, and the phrasing.
 
 Generate:
 
@@ -148,8 +148,8 @@ Generate:
 
 2. VOICEOVER: A warm, narrative voiceover script (spoken aloud by a calm female voice). Max 12 seconds when spoken at normal pace (~35 words max). 
    - Warm, intelligent, slightly poetic tone
-   - Include one specific scientific or psychological insight about why this sound helps sleep/focus
-   - End with: "Subscribe to Midnight Cabins for more."
+   - Use one soft, credible psychological insight. Do not make medical claims or hard scientific promises.
+   - End with one soft CTA such as "Full version on Midnight Cabin." or "Save this for tonight."
    - No emojis, no symbols
 
 Return ONLY this JSON, no markdown:
@@ -199,10 +199,10 @@ if not hook_text:
 
 if not voiceover_text:
     # Simple fallback if Claude fails
-    voiceover_text = f"{theme}. {duration_label} of uninterrupted ambient sound. No ads. Subscribe to Midnight Cabins for more."
+    voiceover_text = f"{theme}. {duration_label} of uninterrupted ambient sound. Full version on Midnight Cabin."
 
 
-cta_text = f"Full {duration_label} on our channel - Subscribe!"
+cta_text = f"Full {duration_label} on Midnight Cabin"
 
 # Strip emojis for drawtext (ffmpeg default font doesn't support emoji)
 hook_text_display = strip_emojis(hook_text)

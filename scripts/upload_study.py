@@ -182,7 +182,7 @@ description = f"""Study With Me — Pomodoro Timer Edition 🍅
 • Deep work and writing
 • Anyone who struggles to stay on task
 
-No ads. No interruptions. Just you, your work, and the timer.
+No mid-roll interruptions. No vocals. Just you, your work, and the timer.
 
 📌 How to use:
 1. Open your study materials

@@ -99,9 +99,9 @@ storyline = idea.get("storyline", "")
 
 description = f"""{storyline}
 
-{duration_label} of uninterrupted {primary.replace("_", " ")} sounds for deep sleep, relaxation, and focused work. No ads. No interruptions. No music.
+{duration_label} of uninterrupted {primary.replace("_", " ")} sounds for deep sleep, relaxation, and focused work. No mid-roll interruptions, no vocals, no sudden sounds.
 
-✨ Perfect for:
+Best for:
 • Falling asleep faster on a restless night
 • Study sessions, deep work, and ADHD focus
 • Meditation, mindfulness, and unwinding
@@ -114,7 +114,7 @@ Whether you're in London, New York, Sydney, or Mumbai — let this play quietly 
 🌙 Mood: {mood.capitalize()}
 ⏱ Duration: {duration_label}
 
-🔔 Subscribe @midnightcabins — new soundscapes uploaded daily.
+Subscribe @midnightcabins for new Midnight Cabin soundscapes.
 
 📌 Chapters:
 {chapters}

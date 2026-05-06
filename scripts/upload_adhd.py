@@ -92,7 +92,7 @@ description = f"""Brown noise and ambient sound specifically mixed for ADHD focu
 • Masks distracting background sounds
 • Provides consistent auditory stimulation
 • Helps quiet racing thoughts
-• Scientifically linked to improved focus in ADHD brains
+• Helps create a steady background for people who prefer constant sound
 
 🎵 Sound layers: {", ".join(layers)}
 🌙 Mood: {mood.capitalize()}
@@ -104,7 +104,7 @@ description = f"""Brown noise and ambient sound specifically mixed for ADHD focu
 • Blocking office or home distractions
 • Reading and writing tasks
 
-No ads. No interruptions. No music — just pure focus sound.
+No mid-roll interruptions. No vocals. No sudden changes — just steady focus sound.
 
 🔔 Subscribe for new ADHD focus sounds every few days.
 

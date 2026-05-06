@@ -98,7 +98,7 @@ description = f"""{theme} — Dark Screen Version
 • ASMR and relaxation without visual stimulation
 • Overnight background ambience
 
-No ads. No interruptions. Screen stays black.
+No mid-roll interruptions. No vocals. No sudden sounds. Screen stays black.
 
 🔔 Subscribe for new dark screen soundscapes every few days.
 
@@ -121,7 +121,7 @@ base_tags = [
     f"{duration_label.lower()} sleep",
     "sleep sounds",
     "ambient sounds",
-    "no ads sleep",
+    "uninterrupted sleep",
     "screen off sleep sounds",
 ]
 

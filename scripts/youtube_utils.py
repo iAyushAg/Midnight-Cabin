@@ -100,7 +100,7 @@ def get_full_tags(primary, layers, duration_label, video_type="main"):
         "sleep sounds",
         "ambient sounds",
         "relaxing sounds",
-        "no ads sleep",
+        "uninterrupted sleep",
         "no interruptions",
         f"{duration_label.lower()} sleep",
         f"{duration_label.lower()} ambient",
@@ -111,7 +111,7 @@ def get_full_tags(primary, layers, duration_label, video_type="main"):
             "rain sounds",
             "rain sounds for sleep",
             f"rain sounds {duration_label.lower()}",
-            "rain sounds no ads",
+            "rain sounds uninterrupted",
             "rain sleep sounds",
             "rainy night ambience",
             "rain asmr",
@@ -189,15 +189,15 @@ def pin_comment(youtube, video_id, primary, duration_label, sound_layers):
 
     # Build comment based on theme
     if "rain" in sound_layers:
-        comment = f"🌧️ The rain builds gradually over the first 10 minutes — let it wash everything away. {duration_label} of pure sleep sound, no ads, no interruptions. Sleep well 🌙"
+        comment = f"🌧️ The rain builds gradually over the first 10 minutes — let it wash everything away. {duration_label} of pure sleep sound, no mid-roll interruptions and no sudden sounds. Sleep well 🌙"
     elif "fireplace" in sound_layers:
-        comment = f"🔥 The fire crackles gently throughout — imagine you're in a cozy cabin far from everything. {duration_label} of warmth, no ads. Sleep well 🌙"
+        comment = f"🔥 The fire crackles gently throughout — imagine you're in a cozy cabin far from everything. {duration_label} of warmth, no sudden sounds. Sleep well 🌙"
     elif "brown_noise" in primary:
-        comment = f"🧠 Brown noise works best at low-medium volume — let it fill the room, not overwhelm it. {duration_label} of pure focus/sleep sound. No ads 🌙"
+        comment = f"🧠 Brown noise works best at low-medium volume — let it fill the room, not overwhelm it. {duration_label} of pure focus/sleep sound. No sudden sounds 🌙"
     elif "river" in sound_layers:
-        comment = f"🌊 The river flows steadily throughout — consistent, calming, uninterrupted. {duration_label} of nature sound. No ads 🌙"
+        comment = f"🌊 The river flows steadily throughout — consistent, calming, uninterrupted. {duration_label} of nature sound. No sudden sounds 🌙"
     else:
-        comment = f"🌙 Let this play quietly in the background — {duration_label} of uninterrupted ambient sound. No ads, no interruptions. Sleep well ✨"
+        comment = f"🌙 Let this play quietly in the background — {duration_label} of uninterrupted ambient sound. No mid-roll interruptions, no sudden sounds. Sleep well ✨"
 
     try:
         # Post comment
@@ -242,9 +242,9 @@ def post_community_update(youtube, video_id, title, primary, duration_label):
     emoji = emoji_map.get(primary, "🌙")
 
     hooks = [
-        f"{emoji} New {duration_label} ambient just dropped — perfect for tonight. No ads, no interruptions.\n\n▶️ youtu.be/{video_id}",
+        f"{emoji} New {duration_label} ambient just dropped — perfect for tonight. No mid-roll interruptions, no sudden sounds.\n\n▶️ youtu.be/{video_id}",
         f"New upload: {title}\n\n{emoji} {duration_label} of pure ambient sound. Let it play while you sleep, study, or just decompress.\n\n▶️ youtu.be/{video_id}",
-        f"{emoji} Can't sleep? Can't focus? Try this.\n\n{duration_label} of uninterrupted {primary.replace('_', ' ')} sounds — no ads.\n\n▶️ youtu.be/{video_id}",
+        f"{emoji} Can't sleep? Can't focus? Try this.\n\n{duration_label} of uninterrupted {primary.replace('_', ' ')} sounds — no mid-roll interruptions.\n\n▶️ youtu.be/{video_id}",
     ]
     post_text = random.choice(hooks)
 

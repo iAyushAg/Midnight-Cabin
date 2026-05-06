@@ -1,5 +1,5 @@
 """
-generate_short.py — YouTube Shorts generator for Midnight Cabins
+generate_short.py — YouTube Shorts generator for Midnight Cabin
 
 Strategy:
 - Rotates 3 hook styles: POV emotional / Educational / Contrast reveal
@@ -83,52 +83,39 @@ with open(SHORT_ROTATION_FILE, "w") as f:
 print(f"Hook style this Short: {hook_style}")
 
 # ─────────────────────────────────────────────
-# HOOK TEXT per style per theme
+# HOOK TEXT + VOICEOVER
 # ─────────────────────────────────────────────
+# Shorts should feel like useful micro-experiences, not ads. Hooks are
+# emotional/scene-based first, with softer science phrasing for trust.
 POV_HOOKS = {
-    "rain":         "POV: It's 3am and your brain finally shuts off 🌧️",
-    "fireplace":    "POV: A cozy cabin with nowhere to be 🔥",
-    "river":        "POV: You found the perfect spot by the river 🌊",
-    "ocean_waves":  "POV: Falling asleep to the ocean for the first time 🌊",
-    "soft_wind":    "POV: A midnight breeze through an open window 🍃",
-    "night_forest": "POV: Completely alone in a quiet forest at midnight 🌲",
-    "brown_noise":  "POV: You finally found something that helps you focus 🧠",
+    "rain":         "POV: You found the 3AM rain",
+    "fireplace":    "POV: The cabin is finally warm",
+    "river":        "POV: You hear water outside",
+    "ocean_waves":  "POV: The ocean keeps breathing",
+    "soft_wind":    "POV: Midnight wind through the window",
+    "night_forest": "POV: The forest is completely still",
+    "brown_noise":  "POV: Your thoughts get quieter",
 }
 
 EDUCATIONAL_HOOKS = {
-    "rain":         "Rain sounds lower cortisol by up to 40% 🌧️",
-    "fireplace":    "Fireplace sounds reduce anxiety — here's why 🔥",
-    "river":        "Running water sounds are scientifically proven to reduce stress 🌊",
-    "ocean_waves":  "Ocean waves match the brain's sleep frequency exactly 🌊",
-    "soft_wind":    "Pink noise in wind sounds improves deep sleep quality 🍃",
-    "night_forest": "Nature sounds reset your nervous system in minutes 🌲",
-    "brown_noise":  "Brown noise changes brain activity in ADHD — here's what it sounds like 🧠",
-}
-
-CONTRAST_HOOKS = {
-    "rain":         "Your brain before rain sounds vs after 🌧️",
-    "fireplace":    "What silence sounds like vs a cozy fireplace 🔥",
-    "river":        "Office noise vs river ambience — spot the difference 🌊",
-    "ocean_waves":  "Anxious mind vs ocean waves 🌊",
-    "soft_wind":    "City noise vs soft wind at midnight 🍃",
-    "night_forest": "Insomnia vs forest night sounds 🌲",
-    "brown_noise":  "ADHD brain without brown noise vs with it 🧠",
+    "rain":         "Your brain likes steady sound",
+    "fireplace":    "Why fire feels so calming",
+    "river":        "A softer background for sleep",
+    "ocean_waves":  "A rhythm your body understands",
+    "soft_wind":    "Soft wind, fewer sharp edges",
+    "night_forest": "Nature sound without sudden noise",
+    "brown_noise":  "Brown noise makes distractions softer",
 }
 
 hook_maps = {
     "pov": POV_HOOKS,
     "educational": EDUCATIONAL_HOOKS,
-    "contrast": CONTRAST_HOOKS,
 }
 
 hook_text = hook_maps[hook_style].get(
     primary,
-    f"POV: You found the perfect {primary.replace('_', ' ')} ambience 🌙"
+    f"Save this sound for tonight"
 )
-
-# ─────────────────────────────────────────────
-# VOICEOVER SCRIPT per style — 3 variants each, rotated automatically
-# ─────────────────────────────────────────────
 
 # Load voiceover rotation index
 VO_ROTATION_FILE = os.path.join(PERSISTENT_DIR, "short_vo_rotation.json")
@@ -143,96 +130,67 @@ next_vo_index = (vo_index + 1) % 3
 with open(VO_ROTATION_FILE, "w") as f:
     json.dump({"index": next_vo_index}, f)
 
+SOFT_CTA = [
+    "Full version on Midnight Cabin.",
+    "Save this for tonight.",
+    "Let the full version play later.",
+]
+
 POV_VOICEOVERS = {
     "rain": [
-        f"Your brain never fully switches off during sleep. It keeps listening — waiting for something to change. Rain gives it something steady. Nothing sudden. Nothing alarming. {duration_label} of quiet, consistent sound. Subscribe to Midnight Cabins for more.",
-        f"Rain does not ask anything of you. It just falls. Steady, patient, unbroken. Your mind has nothing to react to — and that is exactly the point. {duration_label} of rain. Subscribe to Midnight Cabins for more.",
-        f"There is a reason rain puts people to sleep. It fills the silence with something alive but predictable. Safe. Your nervous system exhales. {duration_label}. Subscribe to Midnight Cabins for more.",
+        f"You are inside, dry and still, while the rain gives your mind one steady thing to follow. Nothing sharp. Nothing sudden. {random.choice(SOFT_CTA)}",
+        f"Rain fills the silence without asking for your attention. Let it become the background your thoughts can finally fade into. {random.choice(SOFT_CTA)}",
+        f"This is the sound of the world slowing down outside your window. Keep it low, let it run, and stop chasing sleep. {random.choice(SOFT_CTA)}",
     ],
     "fireplace": [
-        f"For thousands of years, the crackle of fire meant safety and shelter. Your nervous system still remembers. {duration_label} of fireplace ambience. Subscribe to Midnight Cabins for more.",
-        f"Fire is one of the oldest sounds humans have ever known. Warmth. Safety. Nowhere to be. Your body still reads it that way. {duration_label} of cozy fireplace ambience. Subscribe to Midnight Cabins for more.",
-        f"A crackling fireplace is not just relaxing — it is ancestral. Your nervous system was built around this sound. {duration_label}. Subscribe to Midnight Cabins for more.",
+        f"A quiet room, a small fire, and nowhere else to be. The crackle stays gentle enough to keep the night feeling safe. {random.choice(SOFT_CTA)}",
+        f"Fireplace sounds can make a room feel warmer before anything else changes. Let the crackle sit in the background. {random.choice(SOFT_CTA)}",
+        f"This is not music. Just a warm, steady cabin soundscape for reading, resting, or falling asleep. {random.choice(SOFT_CTA)}",
     ],
     "river": [
-        f"Moving water produces pink noise — frequencies that mirror your brain's own resting rhythms. Your mind recognises it. Slows down. {duration_label} of river sound. Subscribe to Midnight Cabins for more.",
-        f"A river does not stop. Does not speed up. Does not startle. It just flows. Your mind finds the same rhythm. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"Before cities, before noise, the sound of running water meant fresh water, safety, rest. Your brain still knows this. {duration_label} of river ambience. Subscribe to Midnight Cabins for more.",
+        f"A river never rushes you. It just keeps moving, giving your mind a soft pattern to rest against. {random.choice(SOFT_CTA)}",
+        f"Flowing water can make background noise feel smoother and less distracting. Let it carry the room for a minute. {random.choice(SOFT_CTA)}",
+        f"You found a quiet place near the river, where every sound moves at the same calm pace. {random.choice(SOFT_CTA)}",
     ],
     "ocean_waves": [
-        f"Ocean waves repeat at twelve cycles per minute — matching the breathing rate of a sleeping person. Your body already knows this rhythm. {duration_label} of ocean ambience. Subscribe to Midnight Cabins for more.",
-        f"The ocean breathes slower than you do. And when you listen long enough — so do you. {duration_label} of ocean waves. Subscribe to Midnight Cabins for more.",
-        f"Wave after wave. Predictable. Patient. Endless. Your nervous system stops bracing for the next thing. {duration_label}. Subscribe to Midnight Cabins for more.",
+        f"The ocean gives you a slow pattern that arrives, fades, and returns. No hurry. No sharp edges. {random.choice(SOFT_CTA)}",
+        f"Wave sounds can help a room feel more predictable, which is exactly what a tired mind wants. {random.choice(SOFT_CTA)}",
+        f"Let one wave replace one thought at a time. Keep the volume low and let the full version play when you rest. {random.choice(SOFT_CTA)}",
     ],
     "soft_wind": [
-        f"Wind at night signals stillness. No storms. No sudden changes. Your nervous system reads this as safety. {duration_label} of soft wind. Subscribe to Midnight Cabins for more.",
-        f"Soft wind is the sound of the world at rest. Trees breathing. Nothing urgent. Nothing coming. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"A gentle breeze through the trees at midnight. The world settling. Your body doing the same. {duration_label} of wind ambience. Subscribe to Midnight Cabins for more.",
+        f"Soft wind is the sound of nothing needing you right now. Just a quiet room, a dark window, and steady air outside. {random.choice(SOFT_CTA)}",
+        f"When the background is gentle and consistent, distractions feel less important. Let the wind hold the space. {random.choice(SOFT_CTA)}",
+        f"A midnight breeze through the trees, low enough for sleep and steady enough for focus. {random.choice(SOFT_CTA)}",
     ],
     "night_forest": [
-        f"Forest sounds at night are an ecosystem at rest. Your brain evolved inside these sounds. {duration_label} of night forest ambience. Subscribe to Midnight Cabins for more.",
-        f"Insects. Distant water. Leaves. A forest at night is never silent — but every sound means safety. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"Your nervous system was built inside forests like this one. These sounds are not just calming. They are home. {duration_label}. Subscribe to Midnight Cabins for more.",
+        f"The forest is not silent, but nothing is demanding your attention. That is what makes it feel restful. {random.choice(SOFT_CTA)}",
+        f"Natural ambience can make a room feel less empty and more settled. Let this become the background. {random.choice(SOFT_CTA)}",
+        f"You are far from traffic, screens, and voices. Just a dark forest and a steady night around you. {random.choice(SOFT_CTA)}",
     ],
     "brown_noise": [
-        f"Sudden sounds during sleep trigger micro-arousals — brief shifts toward lighter sleep you will not remember, but that silently fragment your rest. Brown noise raises the baseline, so nothing stands out. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"Brown noise is not music. It is designed to give your brain something steady to hold onto — so it stops scanning for threats. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"Your ADHD brain is not broken. It is under-stimulated. Brown noise fills that gap — quietly, consistently, without asking for your attention. {duration_label}. Subscribe to Midnight Cabins for more.",
+        f"Brown noise gives your brain a steady low background, so small distractions feel less sharp. Try it quietly. {random.choice(SOFT_CTA)}",
+        f"Many people use brown noise for focus because it fills the empty space without turning into music. {random.choice(SOFT_CTA)}",
+        f"If silence makes every little sound stand out, brown noise can make the room feel smoother. {random.choice(SOFT_CTA)}",
     ],
 }
 
-EDUCATIONAL_VOICEOVERS = {
-    "rain": [
-        f"Your brain does not fully switch off during sleep. The auditory system keeps monitoring for sudden changes. Rain raises the baseline sound, so nothing stands out. Sleep stays deeper. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"Did you know rain sounds reduce cortisol — the stress hormone — within minutes of listening? Your body does not need to be told to relax. It just does. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"The parasympathetic nervous system — your rest mode — is directly triggered by steady ambient sounds like rain. Heart rate slows. Breathing deepens. {duration_label}. Subscribe to Midnight Cabins for more.",
-    ],
-    "fireplace": [
-        f"Warm crackling sounds activate the parasympathetic nervous system — your body's rest mode. Heart rate slows. Cortisol drops. {duration_label} of fireplace ambience. Subscribe to Midnight Cabins for more.",
-        f"Research shows that exposure to fireplace sounds measurably lowers blood pressure. The effect begins within two minutes. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"The irregular crackle of fire keeps your auditory cortex gently engaged — just enough to quiet intrusive thoughts. Not enough to keep you awake. {duration_label}. Subscribe to Midnight Cabins for more.",
-    ],
-    "river": [
-        f"Running water produces pink noise. Studies show it increases slow-wave sleep — the deepest, most restorative stage. {duration_label} of river sound. Subscribe to Midnight Cabins for more.",
-        f"Pink noise — the frequency pattern of flowing water — has been shown to improve memory consolidation during sleep by up to 25 percent. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"Your brain enters its deepest sleep stages more easily when background sound is steady and natural. River sounds are among the most effective. {duration_label}. Subscribe to Midnight Cabins for more.",
-    ],
-    "ocean_waves": [
-        f"Ocean waves oscillate at twelve cycles per minute — identical to the breathing rate of someone in deep sleep. Your body synchronises without effort. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"Entrainment — the brain's tendency to sync with rhythmic patterns — is why ocean waves help you fall asleep faster than almost any other sound. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"Studies show people fall asleep 40 percent faster when exposed to ocean sounds compared to silence. {duration_label}. Subscribe to Midnight Cabins for more.",
-    ],
-    "soft_wind": [
-        f"Pink noise in wind is linked to better memory consolidation during sleep. Your brain does not just rest — it recovers. {duration_label} of soft wind. Subscribe to Midnight Cabins for more.",
-        f"Soft wind sounds activate the default mode network — the brain state responsible for deep rest and processing. You are not just sleeping. You are recovering. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"Wind sounds reduce hyperarousal — the state of being too alert to sleep. Your nervous system stops scanning. Your thoughts stop looping. {duration_label}. Subscribe to Midnight Cabins for more.",
-    ],
-    "night_forest": [
-        f"Nature sounds activate your brain's default mode network — the state responsible for deep rest and mental recovery. {duration_label} of forest night ambience. Subscribe to Midnight Cabins for more.",
-        f"Exposure to natural sounds reduces activity in the brain's threat-detection centre by up to 30 percent. Your body stops bracing. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"The Japanese practice of forest bathing — shinrin-yoku — reduces cortisol, lowers blood pressure, and improves sleep quality. These sounds do the same. {duration_label}. Subscribe to Midnight Cabins for more.",
-    ],
-    "brown_noise": [
-        f"Brown noise raises the room's baseline sound floor. When background is steady, sudden noises stand out less. Your brain stops bracing. Essential for ADHD. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"Brown noise shifts activity to the prefrontal cortex — the part of the ADHD brain that struggles most with focus and impulse control. {duration_label}. Subscribe to Midnight Cabins for more.",
-        f"During sleep, your auditory system monitors for change. Brown noise removes the contrast between silence and sudden sound — so your brain stops monitoring. {duration_label}. Subscribe to Midnight Cabins for more.",
-    ],
-}
-
+EDUCATIONAL_VOICEOVERS = POV_VOICEOVERS
 voiceover_maps = {
     "pov": POV_VOICEOVERS,
     "educational": EDUCATIONAL_VOICEOVERS,
 }
 
-# Pick variant based on rotation index
 variants = voiceover_maps[hook_style].get(
     primary,
-    [f"{theme}. {duration_label} of ambient sound. No ads. Subscribe to Midnight Cabins for more."]
+    [f"{theme}. {duration_label} of uninterrupted ambient sound. Full version on Midnight Cabin."]
 )
 voiceover_text = variants[vo_index % len(variants)]
 
-
-cta_text = f"Full {duration_label} on our channel - Subscribe!"
+cta_text = random.choice([
+    "Save this for tonight",
+    f"Full {duration_label} on Midnight Cabin",
+    "Let this play later",
+])
 
 # Strip emojis for drawtext (ffmpeg default font doesn't support emoji)
 hook_text_display = strip_emojis(hook_text)
