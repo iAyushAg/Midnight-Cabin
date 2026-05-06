@@ -398,13 +398,13 @@ def find_font():
             if os.path.exists(p):
                 return p
 
-    else:  # Linux / Railway
+    else:  # Linux / Railway (Debian trixie)
         linux_fonts = [
-            "/usr/share/fonts/truetype/ubuntu/Ubuntu-L.ttf",
-            "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-            "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+            "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         ]
         for path in linux_fonts:
             if os.path.exists(path):

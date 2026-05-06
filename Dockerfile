@@ -5,8 +5,8 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
     bc \
-    fonts-ubuntu \
     fonts-dejavu-core \
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
