@@ -152,6 +152,20 @@ if history:
 # ─────────────────────────────────────────────
 # 6. CALL CLAUDE
 # ─────────────────────────────────────────────
+
+# Pre-compute JSON strings BEFORE f-string to avoid unhashable type error
+import json as _json
+top_performers_json = _json.dumps(
+    [{"title": str(v.get("title", "")), "views": int(v.get("performance", {}).get("views", 0))}
+     for v in top_performers],
+    indent=2
+)
+low_performers_json = _json.dumps(
+    [{"title": str(v.get("title", "")), "views": int(v.get("performance", {}).get("views", 0))}
+     for v in low_performers],
+    indent=2
+)
+
 prompt = f"""
 You are the Idea Agent for a YouTube channel called Midnight Cabin.
 
@@ -172,10 +186,10 @@ Include "{duration_label}" in the title (not "10 Hours" if it's 8 Hours).
 {json.dumps(trending_keywords[:10], indent=2)}
 
 === TOP PERFORMING VIDEOS ===
-{json.dumps([{{"title": v.get("title"), "views": v.get("performance", {{}}).get("views", 0)}} for v in top_performers], indent=2)}
+{top_performers_json}
 
 === LOW PERFORMING VIDEOS ===
-{json.dumps([{{"title": v.get("title"), "views": v.get("performance", {{}}).get("views", 0)}} for v in low_performers], indent=2)}
+{low_performers_json}
 
 === SUGGESTED PRIMARY CATEGORY ===
 {suggested_primary}
