@@ -2,8 +2,8 @@
 
 # ─────────────────────────────────────────────────────────
 # WORKER — runs two parallel loops:
-# 1. Main pipeline (long video) — every 24h
-# 2. Short pipeline — 3x per day, every 8h
+# 1. Main pipeline long video — every 24h, or every 12h if latest video crosses 500 views
+# 2. Short pipeline — every 30 minutes
 # ─────────────────────────────────────────────────────────
 
 PERSISTENT_DIR="${PERSISTENT_DIR:-/data}"
@@ -66,13 +66,13 @@ PYEOF
 }
 
 # ─────────────────────────────────────────────────────────
-# SHORT LOOP — 3 Shorts per day, every 8 hours
-# First Short posts 2h after deploy so it doesn't clash
-# with the main video that runs immediately
+# SHORT LOOP — every 30 minutes
+# First Short posts 10 minutes after deploy so it does not
+# clash with the main video pipeline starting immediately.
 # ─────────────────────────────────────────────────────────
 run_short_loop() {
-    local SHORT_INTERVAL=28800  # 8 hours in seconds
-    local INITIAL_OFFSET=7200   # 2 hour offset before first Short
+    local SHORT_INTERVAL=1800  # 30 minutes in seconds
+    local INITIAL_OFFSET=600   # 10 minutes before first Short
 
     echo "Short loop: waiting ${INITIAL_OFFSET}s before first Short..."
     WAKE_TIME=$(get_wake_time $INITIAL_OFFSET)
@@ -84,7 +84,7 @@ run_short_loop() {
         bash run_short_pipeline.sh || echo "Short pipeline failed (non-fatal)"
 
         WAKE_TIME=$(get_wake_time $SHORT_INTERVAL)
-        echo "Short loop: sleeping 8h... Next Short at: ${WAKE_TIME}"
+        echo "Short loop: sleeping 30 min... Next Short at: ${WAKE_TIME}"
         notify_telegram "🎬 Next Short at ${WAKE_TIME}"
         sleep $SHORT_INTERVAL
     done
@@ -93,7 +93,7 @@ run_short_loop() {
 # Start Short loop in background
 run_short_loop &
 SHORT_LOOP_PID=$!
-echo "Short loop started (PID: $SHORT_LOOP_PID) — 3 Shorts per day every 8h"
+echo "Short loop started (PID: $SHORT_LOOP_PID) — Shorts every 30 minutes"
 
 # ─────────────────────────────────────────────────────────
 # MAIN LOOP — long video, adaptive cadence
