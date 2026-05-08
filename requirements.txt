@@ -7,3 +7,5 @@ requests
 Pillow
 anthropic
 certifi
+replicate
+openai

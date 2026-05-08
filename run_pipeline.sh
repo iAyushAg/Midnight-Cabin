@@ -133,7 +133,7 @@ echo "Duration: $DURATION_MINUTES min"
 # ─────────────────────────────────────────────────────────
 # GENERATE VISUAL
 # ─────────────────────────────────────────────────────────
-python3 scripts/generate_visual.py || fail "generate_visual"
+python3 scripts/generate_visual.py || echo "Visual generation failed — continuing with existing image"
 
 echo "Visual folder:"
 ls -lh video || true
