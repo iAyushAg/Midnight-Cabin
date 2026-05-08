@@ -146,22 +146,54 @@ if secondary and secondary != primary:
 # Falls back to Pollinations if library empty
 # ─────────────────────────────────────────────
 def pick_library_image(primary):
-    """Pick a random image from the local library for this theme."""
+    """Pick a random high-quality image from video/library/{primary}/.
+
+    This intentionally does NOT fall back to another category folder.
+    If thunder is selected, we only pick from video/library/thunder/.
+    That prevents a thunder video from accidentally using a rain-only image.
+    """
     theme_dir = LIBRARY_DIR / primary
+
     if not theme_dir.exists():
-        print(f"No library folder found: {theme_dir}")
+        print(f"No library folder found for primary '{primary}': {theme_dir}")
         return None
 
-    images = list(theme_dir.glob("*.jpg")) + \
-             list(theme_dir.glob("*.jpeg")) + \
-             list(theme_dir.glob("*.png"))
+    images = (
+        list(theme_dir.glob("*.jpg"))
+        + list(theme_dir.glob("*.jpeg"))
+        + list(theme_dir.glob("*.png"))
+    )
 
     if not images:
-        print(f"No images in library for: {primary}")
+        print(f"No images in library for primary '{primary}': {theme_dir}")
         return None
 
-    chosen = random.choice(images)
-    print(f"Selected from library: {chosen.name}")
+    # Prefer larger files because tiny images usually look bad after animation.
+    MIN_LIBRARY_IMAGE_BYTES = int(os.environ.get("300000", "300000"))
+
+    valid_images = []
+    for image in images:
+        try:
+            size = image.stat().st_size
+            if size >= MIN_LIBRARY_IMAGE_BYTES:
+                valid_images.append(image)
+            else:
+                print(
+                    f"Skipping small library image: {image.name} "
+                    f"({size // 1024}KB < {MIN_LIBRARY_IMAGE_BYTES // 1024}KB)"
+                )
+        except Exception:
+            continue
+
+    if not valid_images:
+        print(
+            f"No library images for '{primary}' passed size filter. "
+            f"Falling back to all available images."
+        )
+        valid_images = images
+
+    chosen = random.choice(valid_images)
+    print(f"Selected from library/{primary}: {chosen.name}")
     return chosen
 
 def download_pollinations_fallback(primary, output_path):
@@ -259,14 +291,34 @@ else:
         print("Pollinations failed — no background image available")
         image_path = None
 
-# Resize to 1280x720
+# Resize/crop to 1920x1080 for better YouTube and animation quality
 if os.path.exists(str(BG_IMAGE)):
     try:
         from PIL import Image as PILImage
+
+        TARGET_W, TARGET_H = 1920, 1080
+        target_ratio = TARGET_W / TARGET_H
+
         img = PILImage.open(str(BG_IMAGE)).convert("RGB")
-        img = img.resize((1280, 720), PILImage.LANCZOS)
-        img.save(str(BG_IMAGE), "JPEG", quality=95)
-        print(f"Resized to 1280x720")
+        src_w, src_h = img.size
+        src_ratio = src_w / src_h
+
+        # Center crop to 16:9 before resizing
+        if src_ratio > target_ratio:
+            new_w = int(src_h * target_ratio)
+            left = (src_w - new_w) // 2
+            img = img.crop((left, 0, left + new_w, src_h))
+        elif src_ratio < target_ratio:
+            new_h = int(src_w / target_ratio)
+            top = (src_h - new_h) // 2
+            img = img.crop((0, top, src_w, top + new_h))
+
+        img = img.resize((TARGET_W, TARGET_H), PILImage.LANCZOS)
+        img.save(str(BG_IMAGE), "JPEG", quality=95, optimize=True)
+
+        print(f"Resized to {TARGET_W}x{TARGET_H}")
+        print(f"Background image size: {os.path.getsize(str(BG_IMAGE)) // 1024}KB")
+
     except Exception as e:
         print(f"PIL resize failed: {e}")
 
@@ -393,7 +445,7 @@ def animate_with_replicate(image_path, prompt):
                     "negative_prompt": NEGATIVE_PROMPT,
                     "num_frames": 81,
                     "frames_per_second": 16,
-                    "resolution": "480p",
+                    "resolution": os.environ.get("720p", "720p"),
                     "aspect_ratio": "16:9",
                     "sample_shift": 16,
                     "go_fast": True,

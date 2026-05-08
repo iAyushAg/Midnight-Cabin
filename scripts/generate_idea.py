@@ -149,6 +149,140 @@ def safe_parse_json(text):
     except json.JSONDecodeError as exc:
         print(f"JSON parse error: {exc}")
         return None
+    
+def repair_and_validate_idea(idea, fallback_context):
+    """Ensure the final idea has a clean, predictable structure.
+
+    Claude sometimes returns malformed or partially nested JSON.
+    This function normalizes the recovered object before saving it.
+    """
+    if not isinstance(idea, dict):
+        idea = {}
+
+    suggested_primary = fallback_context["suggested_primary"]
+    secondary_hint = fallback_context["secondary_hint"]
+    scene_hint = fallback_context["scene_hint"]
+    duration_label = fallback_context["duration_label"]
+    next_duration_minutes = fallback_context["next_duration_minutes"]
+    content_tier = fallback_context["content_tier"]
+    is_flagship = fallback_context["is_flagship"]
+
+    # If fields accidentally landed inside audio_strategy, pull them back out.
+    audio_strategy = idea.get("audio_strategy", {})
+    if not isinstance(audio_strategy, dict):
+        audio_strategy = {}
+
+    misplaced_top_level_fields = [
+        "unique_angle",
+        "first_30_seconds",
+        "retention_hook",
+        "storyline",
+        "visual",
+        "thumbnail_text",
+        "learning_reason",
+    ]
+
+    for key in misplaced_top_level_fields:
+        if not idea.get(key) and audio_strategy.get(key):
+            idea[key] = audio_strategy.pop(key)
+
+    # Normalize sound_layers
+    raw_layers = idea.get("sound_layers", [])
+    if not isinstance(raw_layers, list):
+        raw_layers = []
+
+    allowed_layers = set(CONTENT_BUCKETS)
+    layers = [str(layer) for layer in raw_layers if str(layer) in allowed_layers]
+
+    if suggested_primary not in layers:
+        layers.insert(0, suggested_primary)
+
+    secondary = audio_strategy.get("secondary_category") or secondary_hint
+    if secondary in allowed_layers and secondary not in layers and len(layers) < 3:
+        layers.append(secondary)
+
+    idea["sound_layers"] = layers[:3]
+
+    # Normalize audio strategy
+    idea["audio_strategy"] = {
+        "primary_category": suggested_primary,
+        "secondary_category": next((l for l in idea["sound_layers"] if l != suggested_primary), secondary_hint),
+        "mood": audio_strategy.get("mood", "calm"),
+        "intensity": audio_strategy.get("intensity", "low"),
+    }
+
+    # Normalize title
+    title = str(idea.get("title", "")).strip()
+    if not title or "|" not in title or duration_label not in title or len(title) > 90:
+        utility = "Deep Sleep" if suggested_primary != "brown_noise" else "Focus Sound"
+        title = f"{scene_hint} | {suggested_primary.replace('_', ' ').title()} {utility} | {duration_label}"
+
+    idea["title"] = title[:90].rstrip(" |-")
+
+    # Required text fields
+    idea["theme"] = str(idea.get("theme") or f"{scene_hint} {suggested_primary.replace('_', ' ').title()}").strip()
+
+    idea["storyline"] = str(
+        idea.get("storyline")
+        or f"You are inside a quiet {scene_hint.lower()} as the outside world softens into a steady, calming soundscape."
+    ).strip()
+
+    idea["unique_angle"] = str(
+        idea.get("unique_angle")
+        or f"A specific {scene_hint.lower()} setting with a {suggested_primary.replace('_', ' ')}-first mix instead of a generic sleep loop."
+    ).strip()
+
+    idea["first_30_seconds"] = str(
+        idea.get("first_30_seconds")
+        or "A gentle fade-in, clear primary sound identity, and no sudden volume changes."
+    ).strip()
+
+    idea["retention_hook"] = str(
+        idea.get("retention_hook")
+        or "The mix stays stable and low-distraction for overnight listening or long focus sessions."
+    ).strip()
+
+    idea["visual"] = str(
+        idea.get("visual")
+        or f"dark cozy {scene_hint.lower()}, cinematic low light, no people, slow atmospheric movement"
+    ).strip()
+
+    idea["thumbnail_text"] = str(
+        idea.get("thumbnail_text")
+        or extract_scene_from_title(idea["title"]).upper()[:22]
+    ).strip()
+
+    idea["learning_reason"] = str(
+        idea.get("learning_reason")
+        or "Generated to improve variety while staying inside the Midnight Cabin sleep/focus identity."
+    ).strip()
+
+    # Flagship package repair
+    flagship_package = idea.get("flagship_package", {})
+    if not isinstance(flagship_package, dict):
+        flagship_package = {}
+
+    shorts = flagship_package.get("shorts", [])
+    if not isinstance(shorts, list):
+        shorts = []
+
+    while len(shorts) < 3:
+        shorts.append("Save this soundscape for tonight.")
+
+    idea["flagship_package"] = {
+        "hero_reason": str(
+            flagship_package.get("hero_reason")
+            or ("Weekly flagship concept" if is_flagship else "Standard upload")
+        ),
+        "shorts": [str(s) for s in shorts[:3]],
+    }
+
+    idea["duration_minutes"] = next_duration_minutes
+    idea["content_tier"] = content_tier
+    idea["is_flagship"] = bool(is_flagship)
+    idea["created_at"] = datetime.now().isoformat()
+
+    return idea
 
 
 history = load_json(HISTORY_PATH, [])
@@ -426,68 +560,78 @@ if not idea:
         "learning_reason": "Fallback idea that prioritizes a specific scene, a distinct sound mix, and low-distraction retention.",
     }
 
-# Validate and save.
-idea["created_at"] = datetime.now().isoformat()
-idea["duration_minutes"] = next_duration_minutes
-allowed_layers = set(CONTENT_BUCKETS)
+# ─────────────────────────────────────────────
+# REPAIR, VALIDATE, AND SAVE
+# ─────────────────────────────────────────────
+fallback_context = {
+    "suggested_primary": suggested_primary,
+    "secondary_hint": secondary_hint,
+    "scene_hint": scene_hint,
+    "duration_label": duration_label,
+    "next_duration_minutes": next_duration_minutes,
+    "content_tier": content_tier,
+    "is_flagship": is_flagship,
+}
 
-layers = [l for l in idea.get("sound_layers", []) if l in allowed_layers]
-if suggested_primary not in layers:
-    layers.insert(0, suggested_primary)
+idea = repair_and_validate_idea(idea, fallback_context)
 
-# Brown noise is selective: keep it if primary, if explicitly allowed, or if the concept already depends on it.
-if suggested_primary != "brown_noise" and not include_brown_noise:
-    layers = [l for l in layers if l != "brown_noise"]
-elif include_brown_noise and "brown_noise" not in layers and len(layers) < 3:
-    layers.append("brown_noise")
-
-# Avoid reusing an exact recent layer combination when possible.
-combo = normalize_layers(layers)
+# Avoid reusing exact recent layer combination when possible.
+combo = normalize_layers(idea.get("sound_layers", []))
 if recent_layer_combos.get(combo, 0) > 0:
-    alternatives = [x for x in SECONDARY_BY_PRIMARY.get(suggested_primary, []) if x not in layers]
+    layers = idea.get("sound_layers", [])
+    alternatives = [
+        x for x in SECONDARY_BY_PRIMARY.get(suggested_primary, [])
+        if x not in layers
+    ]
+
     if alternatives:
         if len(layers) >= 2:
             layers[-1] = random.choice(alternatives)
         else:
             layers.append(random.choice(alternatives))
 
-idea["sound_layers"] = layers[:3]
+        idea["sound_layers"] = layers[:3]
+        idea["audio_strategy"]["secondary_category"] = next(
+            (l for l in idea["sound_layers"] if l != suggested_primary),
+            secondary_hint
+        )
 
-# Force primary category and basic metadata consistency.
-idea.setdefault("audio_strategy", {})
-idea["audio_strategy"]["primary_category"] = suggested_primary
-if not idea["audio_strategy"].get("secondary_category"):
-    idea["audio_strategy"]["secondary_category"] = next((l for l in idea["sound_layers"] if l != suggested_primary), "")
-
-# Title guardrails: scene-first, unique, contains duration, under 90 chars.
+# Final title uniqueness guard
 title = str(idea.get("title", "")).strip()
-if duration_label not in title:
-    title = f"{title} | {duration_label}".strip(" |")
-if normalize_title(title) in recent_titles or len(title) > 90 or "|" not in title:
-    scene = pick_unused_scene(recent_scenes)
+if normalize_title(title) in recent_titles:
     utility = "Deep Sleep" if suggested_primary != "brown_noise" else "Focus Sound"
-    title = f"{scene} | {utility} | {duration_label}"
-idea["title"] = title[:90].rstrip(" |-")
-
-idea.setdefault("storyline", "You are inside a quiet cabin as the outside world softens into a steady, calming soundscape.")
-idea.setdefault("unique_angle", "A more specific scene and sound mix than a generic ambient loop.")
-idea.setdefault("first_30_seconds", "Gentle fade-in, immediate atmosphere, and no sudden sounds.")
-idea.setdefault("retention_hook", "Stable, low-distraction sound designed for long listening sessions.")
-idea["content_tier"] = content_tier
-idea["is_flagship"] = bool(is_flagship)
-idea.setdefault("flagship_package", {
-    "hero_reason": "Weekly flagship concept" if is_flagship else "Standard upload",
-    "shorts": [
-        "Emotional POV of the scene",
-        "Soft credible observation about the sound",
-        "Save this for tonight/use later angle",
-    ],
-})
-idea.setdefault("thumbnail_text", extract_scene_from_title(idea["title"]).upper()[:22])
+    title = f"{pick_unused_scene(recent_scenes)} | {utility} | {duration_label}"
+    idea["title"] = title[:90].rstrip(" |-")
 
 os.makedirs(PERSISTENT_DIR, exist_ok=True)
+
 with open(IDEA_PATH, "w") as f:
     json.dump(idea, f, indent=2)
 
 print("\nFinal idea saved:")
 print(json.dumps(idea, indent=2))
+
+# Verify saved JSON can be loaded cleanly.
+with open(IDEA_PATH, "r") as f:
+    verified = json.load(f)
+
+required_fields = [
+    "theme",
+    "title",
+    "storyline",
+    "unique_angle",
+    "first_30_seconds",
+    "retention_hook",
+    "sound_layers",
+    "visual",
+    "thumbnail_text",
+    "duration_minutes",
+    "audio_strategy",
+    "learning_reason",
+]
+
+missing = [field for field in required_fields if field not in verified]
+if missing:
+    raise RuntimeError(f"Final idea missing required fields: {missing}")
+
+print("Final idea JSON verified successfully")

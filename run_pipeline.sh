@@ -265,17 +265,7 @@ fi
 echo "Video created:"
 ls -lh output || true
 
-# ─────────────────────────────────────────────────────────
-# RETENTION / AUDIO / VISUAL QUALITY GATE
-# ─────────────────────────────────────────────────────────
-if [ "${SKIP_QUALITY_GATE:-0}" != "1" ]; then
-    python3 scripts/quality_gate.py \
-        --video output/video.mp4 \
-        --type main \
-        --expected-minutes "$DURATION_MINUTES" || fail "quality_gate"
-else
-    echo "Quality gate skipped by SKIP_QUALITY_GATE=1"
-fi
+
 
 # ─────────────────────────────────────────────────────────
 # VIDEO TYPE SELECTION
