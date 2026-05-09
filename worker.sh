@@ -3,7 +3,7 @@
 # ─────────────────────────────────────────────────────────
 # WORKER — runs two parallel loops:
 # 1. Main pipeline long video — every 24h, or every 12h if latest video crosses 500 views
-# 2. Short pipeline — every 30 minutes
+# 2. Short pipeline — 2 Shorts per day, every 12h, first Short immediately
 # ─────────────────────────────────────────────────────────
 
 PERSISTENT_DIR="${PERSISTENT_DIR:-/data}"
@@ -66,25 +66,28 @@ PYEOF
 }
 
 # ─────────────────────────────────────────────────────────
-# SHORT LOOP — every 30 minutes
-# First Short posts 10 minutes after deploy so it does not
-# clash with the main video pipeline starting immediately.
+# SHORT LOOP — 2 Shorts per day, every 12 hours
+# First Short posts immediately with 0 offset
 # ─────────────────────────────────────────────────────────
 run_short_loop() {
-    local SHORT_INTERVAL=1800  # 30 minutes in seconds
-    local INITIAL_OFFSET=600   # 10 minutes before first Short
+    local SHORT_INTERVAL=43200  # 12 hours in seconds
+    local INITIAL_OFFSET=0      # no delay before first Short
 
     echo "Short loop: waiting ${INITIAL_OFFSET}s before first Short..."
-    WAKE_TIME=$(get_wake_time $INITIAL_OFFSET)
-    notify_telegram "🎬 First Short will post at ${WAKE_TIME}"
-    sleep $INITIAL_OFFSET
+    if [ "$INITIAL_OFFSET" -gt 0 ]; then
+        WAKE_TIME=$(get_wake_time $INITIAL_OFFSET)
+        notify_telegram "🎬 First Short will post at ${WAKE_TIME}"
+        sleep $INITIAL_OFFSET
+    else
+        notify_telegram "🎬 First Short will post now"
+    fi
 
     while true; do
         echo "Running Short pipeline..."
         bash run_short_pipeline.sh || echo "Short pipeline failed (non-fatal)"
 
         WAKE_TIME=$(get_wake_time $SHORT_INTERVAL)
-        echo "Short loop: sleeping 30 min... Next Short at: ${WAKE_TIME}"
+        echo "Short loop: sleeping 12h... Next Short at: ${WAKE_TIME}"
         notify_telegram "🎬 Next Short at ${WAKE_TIME}"
         sleep $SHORT_INTERVAL
     done
@@ -93,7 +96,7 @@ run_short_loop() {
 # Start Short loop in background
 run_short_loop &
 SHORT_LOOP_PID=$!
-echo "Short loop started (PID: $SHORT_LOOP_PID) — Shorts every 30 minutes"
+echo "Short loop started (PID: $SHORT_LOOP_PID) — 2 Shorts per day every 12h"
 
 # ─────────────────────────────────────────────────────────
 # MAIN LOOP — long video, adaptive cadence
