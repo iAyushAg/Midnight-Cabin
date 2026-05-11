@@ -2,8 +2,8 @@
 
 # ─────────────────────────────────────────────────────────
 # WORKER — runs two parallel loops:
-# 1. Main pipeline long video — every 24h, or every 12h if latest video crosses 500 views
-# 2. Short pipeline — 2 Shorts per day, every 12h, first Short immediately
+# 1. Main pipeline (long video) — every 24h
+# 2. Short pipeline — 3x per day, every 8h
 # ─────────────────────────────────────────────────────────
 
 PERSISTENT_DIR="${PERSISTENT_DIR:-/data}"
@@ -66,37 +66,33 @@ PYEOF
 }
 
 # ─────────────────────────────────────────────────────────
-# SHORT LOOP — 2 Shorts per day, every 12 hours
-# First Short posts immediately with 0 offset
+# SHORT LOOP — 3 Shorts per day, every 8 hours
+# First Short posts 2h after deploy so it doesn't clash
+# with the main video that runs immediately
 # ─────────────────────────────────────────────────────────
 run_short_loop() {
-    local SHORT_INTERVAL=43200  # 12 hours in seconds
-    local INITIAL_OFFSET=0      # no delay before first Short
+    local SHORT_INTERVAL=43200  # 12 hours between Shorts
 
-    echo "Short loop: waiting ${INITIAL_OFFSET}s before first Short..."
-    if [ "$INITIAL_OFFSET" -gt 0 ]; then
-        WAKE_TIME=$(get_wake_time $INITIAL_OFFSET)
-        notify_telegram "🎬 First Short will post at ${WAKE_TIME}"
-        sleep $INITIAL_OFFSET
-    else
-        notify_telegram "🎬 First Short will post now"
-    fi
+    # Post first Short immediately on deploy — no waiting
+    echo "Posting first Short immediately on deploy..."
+    notify_telegram "🎬 Posting first Short now..."
+    bash run_short_pipeline.sh || echo "First Short failed (non-fatal)"
 
     while true; do
-        echo "Running Short pipeline..."
-        bash run_short_pipeline.sh || echo "Short pipeline failed (non-fatal)"
-
         WAKE_TIME=$(get_wake_time $SHORT_INTERVAL)
         echo "Short loop: sleeping 12h... Next Short at: ${WAKE_TIME}"
         notify_telegram "🎬 Next Short at ${WAKE_TIME}"
         sleep $SHORT_INTERVAL
+
+        echo "Running Short pipeline..."
+        bash run_short_pipeline.sh || echo "Short pipeline failed (non-fatal)"
     done
 }
 
 # Start Short loop in background
 run_short_loop &
 SHORT_LOOP_PID=$!
-echo "Short loop started (PID: $SHORT_LOOP_PID) — 2 Shorts per day every 12h"
+echo "Short loop started (PID: $SHORT_LOOP_PID) — immediate first Short, then every 12h"
 
 # ─────────────────────────────────────────────────────────
 # MAIN LOOP — long video, adaptive cadence
