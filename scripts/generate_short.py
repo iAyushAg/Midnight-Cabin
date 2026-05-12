@@ -23,6 +23,8 @@ if not os.path.exists(IDEA_PATH):
     IDEA_PATH = os.path.join(BASE_DIR, "current_idea.json")
 
 SOURCE_VIDEO = os.path.join(BASE_DIR, "output", "video.mp4")
+BG_IMAGE = os.path.join(BASE_DIR, "video", "bg.jpg")
+BG_ANIMATED = os.path.join(BASE_DIR, "video", "bg_animated.mp4")
 SHORT_OUTPUT = os.path.join(BASE_DIR, "output", "short.mp4")
 VOICEOVER_PATH = os.path.join(BASE_DIR, "output", "voiceover.mp3")
 SHORT_ROTATION_FILE = os.path.join(PERSISTENT_DIR, "short_hook_rotation.json")
@@ -361,21 +363,9 @@ def escape_text(text):
         .replace("%", "\\%")
         .replace("\n", "\\n"))
 
-def wrap_text(text, width=24):
-    words = text.split()
-    lines, current, count = [], [], 0
-    for word in words:
-        if count + len(word) > width:
-            lines.append(" ".join(current))
-            current, count = [word], len(word)
-        else:
-            current.append(word)
-            count += len(word) + 1
-    if current:
-        lines.append(" ".join(current))
-    return "\\n".join(lines)
-
-hook_wrapped = escape_text(wrap_text(hook_text_display, 22))
+# No wrapping — use single line with smaller font to avoid join typos
+# LLM is instructed to keep hook under 6 words so it fits
+hook_wrapped = escape_text(hook_text_display)
 cta_escaped = escape_text(cta_text_display)
 channel_escaped = escape_text("@midnightcabins")
 
@@ -429,13 +419,12 @@ font_path_escaped = FONT_FILE.replace("\\", "/").replace(":", "\\:").replace("'"
 font_attr = f":fontfile='{font_path_escaped}'" if font_path_escaped else ""
 print(f"Using font: {FONT_FILE or 'ffmpeg default'}")
 
-# Build vf — no enable expressions to avoid ffmpeg comma parsing issues
-# Hook shows full duration, CTA always visible at bottom
+# Build vf — fontsize 44 fits 6-word hook on one line without wrapping
 vf = (
     f"scale=1080:1920:force_original_aspect_ratio=increase,"
     f"crop=1080:1920,"
     f"drawtext=text='{hook_wrapped}'{font_attr}"
-    f":fontsize=52:fontcolor=white"
+    f":fontsize=44:fontcolor=white"
     f":x=(w-text_w)/2:y=h/4"
     f":box=1:boxcolor=black@0.35:boxborderw=24"
     f","
@@ -451,19 +440,62 @@ vf = (
 )
 
 # ─────────────────────────────────────────────
-# AUDIO — reveal effect + voiceover mix
-# Audio fades from 20% to 100% over first 3 seconds
-# giving a satisfying "sound reveal" feel
-# For contrast style: near-silence for first 5s then full volume
+# PICK VIDEO SOURCE
+# Priority: bg_animated.mp4 (Kling animated) > output/video.mp4
+# bg_animated gives the animated rain/fire background in Shorts
 # ─────────────────────────────────────────────
-if not os.path.exists(SOURCE_VIDEO):
-    raise FileNotFoundError(f"Main video not found: {SOURCE_VIDEO}")
-
-# Audio reveal: simple fade-in using afade filter — universally compatible
-# Fade from silence to full volume over 3 seconds
 ambient_fade = "afade=t=in:st=0:d=3"
 
-if has_voiceover and os.path.exists(VOICEOVER_PATH):
+if os.path.exists(BG_ANIMATED):
+    print(f"Using Kling animated background for Short")
+    SHORT_VIDEO_SOURCE = BG_ANIMATED
+    USE_LOOP = True
+elif os.path.exists(SOURCE_VIDEO):
+    print(f"Using main video for Short")
+    SHORT_VIDEO_SOURCE = SOURCE_VIDEO
+    USE_LOOP = False
+else:
+    raise FileNotFoundError("No video source found for Short")
+
+if USE_LOOP:
+    # Loop the 5s animated clip, take audio from main video
+    if has_voiceover and os.path.exists(VOICEOVER_PATH):
+        filter_complex = (
+            f"[1:a]ss={START_OFFSET},{ambient_fade},volume=0.5[ambient];"
+            f"[2:a]volume=1.1,adelay=300|300[vo];"
+            f"[ambient][vo]amix=inputs=2:duration=first:weights=1 1[audio]"
+        )
+        cmd = [
+            "ffmpeg", "-y",
+            "-stream_loop", "-1", "-i", SHORT_VIDEO_SOURCE,
+            "-ss", str(START_OFFSET), "-t", str(SHORT_DURATION), "-i", SOURCE_VIDEO,
+            "-i", VOICEOVER_PATH,
+            "-t", str(SHORT_DURATION),
+            "-filter_complex", filter_complex,
+            "-vf", vf,
+            "-map", "0:v",
+            "-map", "[audio]",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:a", "aac", "-b:a", "192k",
+            "-r", "30", "-movflags", "+faststart",
+            SHORT_OUTPUT
+        ]
+    else:
+        cmd = [
+            "ffmpeg", "-y",
+            "-stream_loop", "-1", "-i", SHORT_VIDEO_SOURCE,
+            "-ss", str(START_OFFSET), "-t", str(SHORT_DURATION), "-i", SOURCE_VIDEO,
+            "-t", str(SHORT_DURATION),
+            "-vf", vf,
+            "-map", "0:v",
+            "-map", "1:a",
+            "-af", f"{ambient_fade},volume=0.5",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:a", "aac", "-b:a", "192k",
+            "-r", "30", "-movflags", "+faststart",
+            SHORT_OUTPUT
+        ]
+elif has_voiceover and os.path.exists(VOICEOVER_PATH):
     filter_complex = (
         f"[0:a]{ambient_fade},volume=0.5[ambient];"
         f"[1:a]volume=1.1,adelay=300|300[vo];"
@@ -471,32 +503,27 @@ if has_voiceover and os.path.exists(VOICEOVER_PATH):
     )
     cmd = [
         "ffmpeg", "-y",
-        "-ss", str(START_OFFSET),
-        "-t", str(SHORT_DURATION),
-        "-i", SOURCE_VIDEO,
+        "-ss", str(START_OFFSET), "-t", str(SHORT_DURATION),
+        "-i", SHORT_VIDEO_SOURCE,
         "-i", VOICEOVER_PATH,
         "-filter_complex", filter_complex,
         "-vf", vf,
-        "-map", "0:v",
-        "-map", "[audio]",
+        "-map", "0:v", "-map", "[audio]",
         "-c:v", "libx264", "-preset", "fast", "-crf", "22",
         "-c:a", "aac", "-b:a", "192k",
-        "-r", "30",
-        "-movflags", "+faststart",
+        "-r", "30", "-movflags", "+faststart",
         SHORT_OUTPUT
     ]
 else:
     cmd = [
         "ffmpeg", "-y",
-        "-ss", str(START_OFFSET),
-        "-t", str(SHORT_DURATION),
-        "-i", SOURCE_VIDEO,
+        "-ss", str(START_OFFSET), "-t", str(SHORT_DURATION),
+        "-i", SHORT_VIDEO_SOURCE,
         "-vf", vf,
         "-af", f"{ambient_fade},volume=0.5",
         "-c:v", "libx264", "-preset", "fast", "-crf", "22",
         "-c:a", "aac", "-b:a", "192k",
-        "-r", "30",
-        "-movflags", "+faststart",
+        "-r", "30", "-movflags", "+faststart",
         SHORT_OUTPUT
     ]
 
