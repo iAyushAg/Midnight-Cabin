@@ -29,7 +29,7 @@ SHORT_OUTPUT = os.path.join(BASE_DIR, "output", "short.mp4")
 VOICEOVER_PATH = os.path.join(BASE_DIR, "output", "voiceover.mp3")
 SHORT_ROTATION_FILE = os.path.join(PERSISTENT_DIR, "short_hook_rotation.json")
 
-SHORT_DURATION = 60
+SHORT_DURATION = 38  # 30-45 seconds — optimal for Shorts retention
 
 # ─────────────────────────────────────────────
 # LOAD IDEA
@@ -446,19 +446,28 @@ vf = (
 # ─────────────────────────────────────────────
 ambient_fade = "afade=t=in:st=0:d=3"
 
-# Also check persistent dir — bg_animated.mp4 is saved there to survive deploys
+# Check all possible locations for animated video
 BG_ANIMATED_PERSISTENT = os.path.join(PERSISTENT_DIR, "bg_animated.mp4")
 
+print(f"DEBUG — checking video sources:")
+print(f"  bg_animated (app):        {BG_ANIMATED} — exists={os.path.exists(BG_ANIMATED)}")
+print(f"  bg_animated (persistent): {BG_ANIMATED_PERSISTENT} — exists={os.path.exists(BG_ANIMATED_PERSISTENT)}")
+print(f"  source video:             {SOURCE_VIDEO} — exists={os.path.exists(SOURCE_VIDEO)}")
+print(f"  bg.jpg:                   {BG_IMAGE} — exists={os.path.exists(BG_IMAGE)}")
+
 if os.path.exists(BG_ANIMATED):
-    print(f"Using Kling animated background: {BG_ANIMATED}")
+    print(f"✅ Using animated bg (app dir)")
     SHORT_VIDEO_SOURCE = BG_ANIMATED
     USE_LOOP = True
 elif os.path.exists(BG_ANIMATED_PERSISTENT):
-    print(f"Using Kling animated background from persistent dir")
+    print(f"✅ Using animated bg (persistent dir)")
     SHORT_VIDEO_SOURCE = BG_ANIMATED_PERSISTENT
+    # Copy back to app dir for this run
+    import shutil as _shutil2
+    _shutil2.copy(BG_ANIMATED_PERSISTENT, BG_ANIMATED)
     USE_LOOP = True
 elif os.path.exists(SOURCE_VIDEO):
-    print(f"Using main video for Short")
+    print(f"⚠️  No animated bg found — using main video")
     SHORT_VIDEO_SOURCE = SOURCE_VIDEO
     USE_LOOP = False
 else:

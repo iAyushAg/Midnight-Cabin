@@ -70,33 +70,12 @@ PYEOF
 # First Short posts 2h after deploy so it doesn't clash
 # with the main video that runs immediately
 # ─────────────────────────────────────────────────────────
-run_short_loop() {
-    local SHORT_INTERVAL=43200  # 12 hours between Shorts
-
-    # Post first Short immediately on deploy — no waiting
-    echo "Posting first Short immediately on deploy..."
-    notify_telegram "🎬 Posting first Short now..."
-    bash run_short_pipeline.sh || echo "First Short failed (non-fatal)"
-
-    while true; do
-        WAKE_TIME=$(get_wake_time $SHORT_INTERVAL)
-        echo "Short loop: sleeping 12h... Next Short at: ${WAKE_TIME}"
-        notify_telegram "🎬 Next Short at ${WAKE_TIME}"
-        sleep $SHORT_INTERVAL
-
-        echo "Running Short pipeline..."
-        bash run_short_pipeline.sh || echo "Short pipeline failed (non-fatal)"
-    done
-}
-
-# Start Short loop in background
-run_short_loop &
-SHORT_LOOP_PID=$!
-echo "Short loop started (PID: $SHORT_LOOP_PID) — immediate first Short, then every 12h"
-
 # ─────────────────────────────────────────────────────────
-# MAIN LOOP — long video, adaptive cadence
+# MAIN LOOP — runs first, then starts Short loop after
 # ─────────────────────────────────────────────────────────
+
+SHORT_INTERVAL=43200  # 12 hours between Shorts
+
 while true; do
     echo "Running main pipeline..."
     bash run_pipeline.sh || echo "Main pipeline failed"
@@ -107,5 +86,21 @@ while true; do
 
     echo "Sleeping ${SLEEP_HOURS} hours (${SLEEP_SECS}s)... Next video at: ${WAKE_TIME}"
     notify_telegram "😴 Sleeping for ${SLEEP_HOURS}h — next video at ${WAKE_TIME}"
-    sleep "$SLEEP_SECS"
+
+    # Run Short immediately after main pipeline finishes
+    # This ensures animated bg and fresh idea are available
+    echo "Running Short pipeline (post-main)..."
+    bash run_short_pipeline.sh || echo "Short pipeline failed (non-fatal)"
+    WAKE_TIME_SHORT=$(get_wake_time $SHORT_INTERVAL)
+    notify_telegram "🎬 Next Short at ${WAKE_TIME_SHORT}"
+
+    # Sleep, then run another Short midway before next main video
+    sleep $SHORT_INTERVAL
+
+    echo "Running Short pipeline (midpoint)..."
+    bash run_short_pipeline.sh || echo "Short pipeline failed (non-fatal)"
+    WAKE_TIME_SHORT=$(get_wake_time $SHORT_INTERVAL)
+    notify_telegram "🎬 Next Short at ${WAKE_TIME_SHORT}"
+
+    sleep $SHORT_INTERVAL
 done
