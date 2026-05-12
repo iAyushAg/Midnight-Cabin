@@ -464,7 +464,12 @@ with open(os.path.join(PERSISTENT_DIR, "current_visual.json"), "w") as f:
     json.dump(visual_meta, f, indent=2)
 
 if animation_success:
+    # Copy to persistent dir so Short pipeline finds it after redeploy
+    import shutil as _shutil
+    persistent_anim = os.path.join(PERSISTENT_DIR, "bg_animated.mp4")
+    _shutil.copy(str(BG_VIDEO), persistent_anim)
     print(f"✅ Animated video ready: {BG_VIDEO}")
+    print(f"✅ Saved to persistent dir: {persistent_anim}")
 else:
     print(f"✅ Static image ready: {BG_IMAGE}")
 

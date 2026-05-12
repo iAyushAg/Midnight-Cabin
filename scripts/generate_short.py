@@ -173,7 +173,7 @@ Hook style: {hook_style}
 Generate TWO things:
 
 1. HOOK_TEXT — shown as large text on screen
-   - Max 6 words, no punctuation except apostrophes
+   - Max 5 words, no punctuation except apostrophes
    - No emojis (they break video rendering)
    - Style guide:
      * POV style: Start with "POV:" then a short scene ("POV: The cabin is finally quiet")
@@ -211,8 +211,8 @@ Return ONLY valid JSON, no markdown:
         vo = data.get("voiceover", "").strip()
 
         # Validate
-        if not hook or len(hook) > 60:
-            print(f"LLM hook invalid: '{hook}' — using fallback")
+        if not hook or len(hook) > 45:
+            print(f"LLM hook too long ({len(hook)} chars): '{hook}' — using fallback")
             return None, None
         if not vo or len(vo.split()) > 40:
             print(f"LLM voiceover too long or empty — using fallback")
@@ -424,7 +424,7 @@ vf = (
     f"scale=1080:1920:force_original_aspect_ratio=increase,"
     f"crop=1080:1920,"
     f"drawtext=text='{hook_wrapped}'{font_attr}"
-    f":fontsize=44:fontcolor=white"
+    f":fontsize=38:fontcolor=white"
     f":x=(w-text_w)/2:y=h/4"
     f":box=1:boxcolor=black@0.35:boxborderw=24"
     f","
@@ -446,9 +446,16 @@ vf = (
 # ─────────────────────────────────────────────
 ambient_fade = "afade=t=in:st=0:d=3"
 
+# Also check persistent dir — bg_animated.mp4 is saved there to survive deploys
+BG_ANIMATED_PERSISTENT = os.path.join(PERSISTENT_DIR, "bg_animated.mp4")
+
 if os.path.exists(BG_ANIMATED):
-    print(f"Using Kling animated background for Short")
+    print(f"Using Kling animated background: {BG_ANIMATED}")
     SHORT_VIDEO_SOURCE = BG_ANIMATED
+    USE_LOOP = True
+elif os.path.exists(BG_ANIMATED_PERSISTENT):
+    print(f"Using Kling animated background from persistent dir")
+    SHORT_VIDEO_SOURCE = BG_ANIMATED_PERSISTENT
     USE_LOOP = True
 elif os.path.exists(SOURCE_VIDEO):
     print(f"Using main video for Short")
