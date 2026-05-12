@@ -55,62 +55,77 @@ print(f"Generating visual for: {theme} ({primary})")
 # ANIMATION PROMPTS per theme
 # Focused on motion only — image is the anchor
 # ─────────────────────────────────────────────
+# Animation prompts — motion only, no camera movement
+# Key principle: ONLY natural elements move (rain, fire, water)
+# Camera is completely locked — no pan, zoom, or drift
 ANIMATION_PROMPTS = {
     "rain": (
-        "heavy raindrops streaming down window glass, "
-        "rain falling outside visible through window, "
-        "fireplace fire flickering with dancing orange flames and glowing red embers, "
-        "warm amber light from fire pulsing gently on walls, "
-        "all furniture books and objects completely motionless"
+        "static locked camera, fixed viewpoint, no camera movement whatsoever, "
+        "only raindrops streaming down window glass are moving, "
+        "only fireplace flames flickering with orange and red glow, "
+        "warm amber firelight gently pulsing on walls and ceiling, "
+        "all furniture bed pillows books lamps completely frozen and still, "
+        "perfectly seamless loop"
     ),
     "fireplace": (
-        "fireplace fire burning with tall flickering orange and yellow flames, "
-        "bright glowing embers crackling, "
-        "warm amber firelight dancing on stone walls and floor, "
-        "wisps of smoke rising slowly from flames, "
-        "all furniture and objects completely motionless"
+        "static locked camera, fixed viewpoint, no camera movement whatsoever, "
+        "only fireplace flames flickering and dancing with orange yellow glow, "
+        "only glowing red hot embers crackling and shifting, "
+        "only wisps of smoke rising slowly from fire, "
+        "warm amber firelight pulsing softly on stone walls, "
+        "all furniture objects decorations completely frozen still, "
+        "perfectly seamless loop"
     ),
     "river": (
-        "river water flowing smoothly with rippling surface catching moonlight, "
-        "gentle mist rising from water surface, "
-        "fireplace fire flickering with orange flames, "
-        "moonlight shimmer on moving water, "
-        "cabin interior completely still and motionless"
+        "static locked camera, fixed viewpoint, no camera movement whatsoever, "
+        "only river water flowing and rippling over rocks, "
+        "only gentle mist drifting slowly above water surface, "
+        "only moonlight shimmer moving on water, "
+        "only fireplace flames flickering softly, "
+        "all cabin interior objects completely frozen still, "
+        "perfectly seamless loop"
     ),
     "ocean_waves": (
-        "ocean waves rolling and breaking on rocks below, "
-        "white foam and spray on wave crests, "
-        "water surface heaving with swells, "
-        "fireplace fire flickering orange and warm, "
-        "candlelight flame gently wavering, "
-        "all interior objects completely still"
+        "static locked camera, fixed viewpoint, no camera movement whatsoever, "
+        "only ocean waves rolling and crashing on rocks, "
+        "only white sea foam forming and dissolving, "
+        "only water surface heaving with swells, "
+        "only fireplace flames flickering and candlelight wavering, "
+        "all interior furniture objects completely frozen still, "
+        "perfectly seamless loop"
     ),
     "soft_wind": (
-        "bamboo gently swaying and rustling in soft breeze, "
-        "cherry blossom petals slowly drifting through air, "
-        "paper lanterns swaying slightly casting moving light, "
-        "interior objects completely still"
+        "static locked camera, fixed viewpoint, no camera movement whatsoever, "
+        "only bamboo stalks swaying gently in breeze, "
+        "only cherry blossom petals drifting slowly through air, "
+        "only paper lanterns swaying very slightly, "
+        "all interior floor objects furniture completely frozen still, "
+        "perfectly seamless loop"
     ),
     "night_forest": (
-        "fireflies slowly drifting and blinking in dark forest, "
-        "fireplace fire flickering with warm orange glow, "
-        "fairy lights gently twinkling, "
-        "tree branches barely moving, "
-        "interior completely still"
+        "static locked camera, fixed viewpoint, no camera movement whatsoever, "
+        "only fireflies blinking and drifting in dark forest, "
+        "only fireplace flames flickering with warm amber glow, "
+        "only fairy lights twinkling gently, "
+        "all cabin interior trees bark completely frozen still, "
+        "perfectly seamless loop"
     ),
     "brown_noise": (
-        "raindrops streaming down window glass, "
-        "blurred city lights glimmering through wet glass, "
-        "fireplace fire flickering with small orange flames, "
-        "candle flame wavering gently, "
-        "desk and all objects completely motionless"
+        "static locked camera, fixed viewpoint, no camera movement whatsoever, "
+        "only raindrops streaming down window glass, "
+        "only city lights shimmering through wet glass, "
+        "only fireplace flames flickering softly, "
+        "only candle flame wavering very gently, "
+        "desk lamp notebook coffee cup all completely frozen still, "
+        "perfectly seamless loop"
     ),
     "thunder": (
-        "heavy rain streaming violently down window glass, "
-        "brief bright lightning flash outside illuminating stormy sky, "
-        "fireplace fire blazing with tall vigorous flames, "
-        "dramatic flickering firelight on walls, "
-        "all interior objects motionless"
+        "static locked camera, fixed viewpoint, no camera movement whatsoever, "
+        "only heavy rain streaming violently down window glass, "
+        "only single brief lightning flash illuminating sky, "
+        "only fireplace flames blazing and dancing dramatically, "
+        "all interior furniture objects completely frozen still, "
+        "perfectly seamless loop"
     ),
 }
 
@@ -146,54 +161,22 @@ if secondary and secondary != primary:
 # Falls back to Pollinations if library empty
 # ─────────────────────────────────────────────
 def pick_library_image(primary):
-    """Pick a random high-quality image from video/library/{primary}/.
-
-    This intentionally does NOT fall back to another category folder.
-    If thunder is selected, we only pick from video/library/thunder/.
-    That prevents a thunder video from accidentally using a rain-only image.
-    """
+    """Pick a random image from the local library for this theme."""
     theme_dir = LIBRARY_DIR / primary
-
     if not theme_dir.exists():
-        print(f"No library folder found for primary '{primary}': {theme_dir}")
+        print(f"No library folder found: {theme_dir}")
         return None
 
-    images = (
-        list(theme_dir.glob("*.jpg"))
-        + list(theme_dir.glob("*.jpeg"))
-        + list(theme_dir.glob("*.png"))
-    )
+    images = list(theme_dir.glob("*.jpg")) + \
+             list(theme_dir.glob("*.jpeg")) + \
+             list(theme_dir.glob("*.png"))
 
     if not images:
-        print(f"No images in library for primary '{primary}': {theme_dir}")
+        print(f"No images in library for: {primary}")
         return None
 
-    # Prefer larger files because tiny images usually look bad after animation.
-    MIN_LIBRARY_IMAGE_BYTES = int(os.environ.get("300000", "300000"))
-
-    valid_images = []
-    for image in images:
-        try:
-            size = image.stat().st_size
-            if size >= MIN_LIBRARY_IMAGE_BYTES:
-                valid_images.append(image)
-            else:
-                print(
-                    f"Skipping small library image: {image.name} "
-                    f"({size // 1024}KB < {MIN_LIBRARY_IMAGE_BYTES // 1024}KB)"
-                )
-        except Exception:
-            continue
-
-    if not valid_images:
-        print(
-            f"No library images for '{primary}' passed size filter. "
-            f"Falling back to all available images."
-        )
-        valid_images = images
-
-    chosen = random.choice(valid_images)
-    print(f"Selected from library/{primary}: {chosen.name}")
+    chosen = random.choice(images)
+    print(f"Selected from library: {chosen.name}")
     return chosen
 
 def download_pollinations_fallback(primary, output_path):
@@ -291,34 +274,14 @@ else:
         print("Pollinations failed — no background image available")
         image_path = None
 
-# Resize/crop to 1920x1080 for better YouTube and animation quality
+# Resize to 1280x720
 if os.path.exists(str(BG_IMAGE)):
     try:
         from PIL import Image as PILImage
-
-        TARGET_W, TARGET_H = 1920, 1080
-        target_ratio = TARGET_W / TARGET_H
-
         img = PILImage.open(str(BG_IMAGE)).convert("RGB")
-        src_w, src_h = img.size
-        src_ratio = src_w / src_h
-
-        # Center crop to 16:9 before resizing
-        if src_ratio > target_ratio:
-            new_w = int(src_h * target_ratio)
-            left = (src_w - new_w) // 2
-            img = img.crop((left, 0, left + new_w, src_h))
-        elif src_ratio < target_ratio:
-            new_h = int(src_w / target_ratio)
-            top = (src_h - new_h) // 2
-            img = img.crop((0, top, src_w, top + new_h))
-
-        img = img.resize((TARGET_W, TARGET_H), PILImage.LANCZOS)
-        img.save(str(BG_IMAGE), "JPEG", quality=95, optimize=True)
-
-        print(f"Resized to {TARGET_W}x{TARGET_H}")
-        print(f"Background image size: {os.path.getsize(str(BG_IMAGE)) // 1024}KB")
-
+        img = img.resize((1280, 720), PILImage.LANCZOS)
+        img.save(str(BG_IMAGE), "JPEG", quality=95)
+        print(f"Resized to 1280x720")
     except Exception as e:
         print(f"PIL resize failed: {e}")
 
@@ -370,12 +333,17 @@ def animate_with_kling(image_path, prompt, negative_prompt):
 
     # Submit task
     payload = {
-        "model_name": "kling-v1",  # kling-v1 is most stable and cost effective
+        "model_name": "kling-v1-5",  # v1.5 has better motion control than v1
         "image": img_b64,
         "prompt": prompt,
-        "negative_prompt": negative_prompt,
-        "cfg_scale": 0.5,
-        "mode": "std",       # std = standard quality, cheaper
+        "negative_prompt": negative_prompt + (
+            ", camera pan, camera zoom, camera rotation, camera drift, "
+            "camera movement, viewpoint change, perspective shift, "
+            "dolly shot, tracking shot, handheld camera, "
+            "scene transition, cut, fade, dissolve"
+        ),
+        "cfg_scale": 0.6,    # higher = follows prompt more strictly
+        "mode": "std",
         "duration": "5",     # 5 seconds
     }
 
@@ -445,7 +413,7 @@ def animate_with_replicate(image_path, prompt):
                     "negative_prompt": NEGATIVE_PROMPT,
                     "num_frames": 81,
                     "frames_per_second": 16,
-                    "resolution": os.environ.get("720p", "720p"),
+                    "resolution": "480p",
                     "aspect_ratio": "16:9",
                     "sample_shift": 16,
                     "go_fast": True,

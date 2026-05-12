@@ -26,8 +26,8 @@ import json, os
 
 PERSISTENT_DIR = os.environ.get("PERSISTENT_DIR", "/data")
 HISTORY_FILE = os.path.join(PERSISTENT_DIR, "video_history.json")
-DEFAULT_INTERVAL = 24 * 3600
-BOOST_INTERVAL   = 12 * 3600
+DEFAULT_INTERVAL = 48 * 3600  # 48 hours between main videos
+BOOST_INTERVAL   = 24 * 3600  # 24 hours if a video hits 500+ views
 
 if not os.path.exists(HISTORY_FILE):
     print(DEFAULT_INTERVAL)
