@@ -135,6 +135,19 @@ echo "Duration: $DURATION_MINUTES min"
 # ─────────────────────────────────────────────────────────
 python3 scripts/generate_visual.py || echo "Visual generation failed — continuing with existing image"
 
+# Re-encode animated bg to strip Late SEI warnings (runs once per new file)
+if [ -f "$PERSISTENT_DIR/bg_animated.mp4" ] && [ ! -f "$PERSISTENT_DIR/bg_animated.mp4.clean" ]; then
+    echo "Re-encoding bg_animated.mp4 to strip Late SEI warnings..."
+    ffmpeg -i "$PERSISTENT_DIR/bg_animated.mp4" \
+        -c:v libx264 -profile:v high -level 4.1 \
+        -pix_fmt yuv420p -movflags +faststart \
+        "$PERSISTENT_DIR/bg_animated_clean.mp4" && \
+    mv "$PERSISTENT_DIR/bg_animated.mp4" "$PERSISTENT_DIR/bg_animated_backup.mp4" && \
+    mv "$PERSISTENT_DIR/bg_animated_clean.mp4" "$PERSISTENT_DIR/bg_animated.mp4" && \
+    touch "$PERSISTENT_DIR/bg_animated.mp4.clean" && \
+    echo "Re-encode done" || echo "Re-encode failed (non-fatal)"
+fi
+
 echo "Visual folder:"
 ls -lh video || true
 
