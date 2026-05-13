@@ -474,10 +474,12 @@ else:
     raise FileNotFoundError("No video source found for Short")
 
 if USE_LOOP:
-    # Loop the 5s animated clip, take audio from main video
+    # Loop the animated clip, take audio from main video.
+    # Audio seek is done via -ss on the input flag (before -i SOURCE_VIDEO),
+    # NOT inside filter_complex — ss= is not a valid audio filter.
     if has_voiceover and os.path.exists(VOICEOVER_PATH):
         filter_complex = (
-            f"[1:a]ss={START_OFFSET},{ambient_fade},volume=0.5[ambient];"
+            f"[1:a]{ambient_fade},volume=0.5[ambient];"
             f"[2:a]volume=1.1,adelay=300|300[vo];"
             f"[ambient][vo]amix=inputs=2:duration=first:weights=1 1[audio]"
         )
