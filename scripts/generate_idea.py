@@ -298,38 +298,56 @@ recent_primary_counts = Counter(
     if v.get("audio_strategy", {}).get("primary_category")
 )
 
-# Theme blackout: avoid primaries used in the last 30 days when possible.
-BLACKOUT_DAYS = 30
-cutoff = datetime.now() - timedelta(days=BLACKOUT_DAYS)
-blacked_out_themes = set()
-for item in history:
-    uploaded_at = item.get("uploaded_at", "")
+# ─────────────────────────────────────────────
+# STRICT ROUND-ROBIN NICHE ROTATION
+# Tracks which niche was used per pipeline RUN (not per upload record).
+# Each run writes one entry to niche_rotation.json regardless of how many
+# upload types (main/adhd/dark_screen/study) are produced from that run.
+# This prevents rain from dominating just because it got 4 history records
+# in one cycle.
+# ─────────────────────────────────────────────
+ROTATION_FILE = os.path.join(PERSISTENT_DIR, "niche_rotation.json")
+
+def load_rotation():
     try:
-        upload_date = datetime.fromisoformat(uploaded_at)
+        if os.path.exists(ROTATION_FILE):
+            with open(ROTATION_FILE) as f:
+                return json.load(f)
     except Exception:
-        continue
-    if upload_date >= cutoff:
-        primary = item.get("audio_strategy", {}).get("primary_category")
-        if primary:
-            blacked_out_themes.add(primary)
+        pass
+    return {"queue": [], "used": []}
 
-print("Blacked out themes (used in last 30 days):", blacked_out_themes)
+def save_rotation(data):
+    with open(ROTATION_FILE, "w") as f:
+        json.dump(data, f, indent=2)
 
-available_buckets = [b for b in CONTENT_BUCKETS if b not in blacked_out_themes]
-if not available_buckets:
-    print("All themes blacked out - resetting blackout")
-    available_buckets = CONTENT_BUCKETS[:]
+rotation = load_rotation()
+queue = rotation.get("queue", [])
 
-min_count = min((recent_primary_counts.get(c, 0) for c in available_buckets), default=0)
-least_used = [c for c in available_buckets if recent_primary_counts.get(c, 0) == min_count]
-random.shuffle(least_used)
-suggested_primary = least_used[0] if least_used else random.choice(CONTENT_BUCKETS)
+# Rebuild queue whenever it runs dry — shuffle for variety
+if not queue:
+    new_queue = CONTENT_BUCKETS[:]
+    random.shuffle(new_queue)
+    # Never start with the same niche that just ran
+    last_used = rotation.get("used", [])
+    last_primary_used = last_used[-1] if last_used else None
+    if new_queue and new_queue[0] == last_primary_used and len(new_queue) > 1:
+        swap_idx = random.randint(1, len(new_queue) - 1)
+        new_queue[0], new_queue[swap_idx] = new_queue[swap_idx], new_queue[0]
+    queue = new_queue
+    print(f"Rotation queue exhausted — rebuilt: {queue}")
 
-last_primary = history[-1].get("audio_strategy", {}).get("primary_category") if history else None
-if suggested_primary == last_primary and len(available_buckets) > 1:
-    remaining = [b for b in available_buckets if b != last_primary]
-    suggested_primary = random.choice(remaining)
-    print(f"Avoided repeating last category ({last_primary}), switched to: {suggested_primary}")
+suggested_primary = queue.pop(0)
+
+# Save updated rotation state
+used_log = rotation.get("used", [])
+used_log.append(suggested_primary)
+used_log = used_log[-20:]  # keep last 20 only
+save_rotation({"queue": queue, "used": used_log})
+
+blacked_out_themes = set()  # kept for prompt context only — no longer drives selection
+print(f"Niche rotation selected: {suggested_primary}")
+print(f"Remaining in queue: {queue}")
 
 include_brown_noise = should_use_brown_noise(suggested_primary, recent_results)
 scene_hint = pick_unused_scene(recent_scenes)
