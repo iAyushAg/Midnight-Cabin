@@ -27,7 +27,7 @@ import json, os
 PERSISTENT_DIR = os.environ.get("PERSISTENT_DIR", "/data")
 HISTORY_FILE = os.path.join(PERSISTENT_DIR, "video_history.json")
 DEFAULT_INTERVAL = 48 * 3600  # 48 hours between main videos
-BOOST_INTERVAL   = 24 * 3600  # 24 hours if a video hits 500+ views
+BOOST_INTERVAL   = 24 * 3600  # 24 hours if a long-form video hits 500+ views
 
 if not os.path.exists(HISTORY_FILE):
     print(DEFAULT_INTERVAL)
@@ -44,10 +44,20 @@ if not history:
     print(DEFAULT_INTERVAL)
     exit()
 
-latest = history[-1]
-views = latest.get("performance", {}).get("views", 0)
+# Only check long-form videos for the boost threshold — not Shorts
+# A Short with 500 views should not trigger faster long-form uploads
+long_form_types = {"main", "adhd", "dark_screen", "study_with_me"}
+long_form = [v for v in history if v.get("type", "main") in long_form_types]
 
-if views >= 500:
+if not long_form:
+    print(DEFAULT_INTERVAL)
+    exit()
+
+# Check if any recent long-form video is performing well
+recent_long_form = long_form[-5:]  # last 5 long-form videos
+max_views = max(v.get("performance", {}).get("views", 0) for v in recent_long_form)
+
+if max_views >= 500:
     print(BOOST_INTERVAL)
 else:
     print(DEFAULT_INTERVAL)

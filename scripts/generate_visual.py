@@ -161,7 +161,8 @@ if secondary and secondary != primary:
 # Falls back to Pollinations if library empty
 # ─────────────────────────────────────────────
 def pick_library_image(primary):
-    """Pick a random image from the local library for this theme."""
+    """Pick a random unused image from the local library for this theme.
+    Tracks recently used images in used_library_images.json to avoid repeats."""
     theme_dir = LIBRARY_DIR / primary
     if not theme_dir.exists():
         print(f"No library folder found: {theme_dir}")
@@ -175,7 +176,36 @@ def pick_library_image(primary):
         print(f"No images in library for: {primary}")
         return None
 
-    chosen = random.choice(images)
+    # Load recently used image names
+    used_path = os.path.join(PERSISTENT_DIR, "used_library_images.json")
+    used_map = {}
+    try:
+        if os.path.exists(used_path):
+            with open(used_path) as f:
+                used_map = json.load(f)
+    except Exception:
+        pass
+
+    used_names = set(used_map.get(primary, []))
+    available = [img for img in images if img.name not in used_names]
+
+    if not available:
+        # All used — reset for this niche
+        print(f"All library images used for '{primary}' — resetting rotation")
+        available = images
+        used_names = set()
+
+    chosen = random.choice(available)
+
+    # Save to used log
+    used_names.add(chosen.name)
+    used_map[primary] = list(used_names)
+    try:
+        with open(used_path, "w") as f:
+            json.dump(used_map, f, indent=2)
+    except Exception:
+        pass
+
     print(f"Selected from library: {chosen.name}")
     return chosen
 
@@ -239,7 +269,7 @@ def download_pollinations_fallback(primary, output_path):
 
     try:
         encoded = quote(prompt)
-        seed = abs(hash(theme)) % 999999
+        seed = int(time.time()) % 999999  # time-based seed ensures unique image every run
         url = (f"https://image.pollinations.ai/prompt/{encoded}"
                f"?width=1280&height=720&seed={seed}&model=flux&nologo=true&enhance=true")
         print("Calling Pollinations.ai fallback...")
@@ -274,16 +304,22 @@ else:
         print("Pollinations failed — no background image available")
         image_path = None
 
-# Resize to 1280x720
+# Only resize if image is smaller than minimum — never downscale library images
+# Kling produces better animation from higher resolution source images
 if os.path.exists(str(BG_IMAGE)):
     try:
         from PIL import Image as PILImage
         img = PILImage.open(str(BG_IMAGE)).convert("RGB")
-        img = img.resize((1280, 720), PILImage.LANCZOS)
-        img.save(str(BG_IMAGE), "JPEG", quality=95)
-        print(f"Resized to 1280x720")
+        w, h = img.size
+        if w < 1280 or h < 720:
+            # Only upscale if too small
+            img = img.resize((max(w, 1280), max(h, 720)), PILImage.LANCZOS)
+            img.save(str(BG_IMAGE), "JPEG", quality=95)
+            print(f"Upscaled small image to {img.size}")
+        else:
+            print(f"Library image kept at native resolution: {w}x{h}")
     except Exception as e:
-        print(f"PIL resize failed: {e}")
+        print(f"PIL check failed: {e}")
 
 # ─────────────────────────────────────────────
 # STEP 2 — ANIMATE VIA KLING API

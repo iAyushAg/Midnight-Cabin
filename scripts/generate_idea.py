@@ -433,94 +433,94 @@ brown_noise_rule = (
 )
 
 prompt = f"""
-You are the Idea Agent for a YouTube channel called Midnight Cabin.
+You are the Idea Agent for Midnight Cabin, a YouTube sleep and focus sounds channel.
 
-The channel creates long sleep, relaxation, and focus soundscape videos. The goal is to build a monetization-ready catalog that feels curated, original, and intentional rather than mass-produced.
+Your job is to generate ONE video idea optimised for YouTube search discovery.
+This channel is small (under 100 subscribers). YouTube will NOT recommend our videos.
+The ONLY way people will find us is by searching. Every title must match real search queries.
 
-Available sound categories:
-- rain, river, thunder, fireplace, ocean_waves, soft_wind, night_forest, brown_noise
-
-=== THEME BLACKOUT ===
-These primary categories were used in the last 30 days. Avoid them as primary unless no alternative exists:
-{list(blacked_out_themes)}
-
-=== RECENT TITLES TO AVOID ===
-{recent_titles_json}
-
-=== RECENT SOUND COMBOS TO AVOID COPYING ===
-{recent_combos_json}
-
-=== VIDEO LENGTH ===
-This video must be: {duration_label}
-Include exactly "{duration_label}" in the title.
-
-=== YOUTUBE TRENDING TITLES (keyword inspiration only, do not copy) ===
-{json.dumps(trending_keywords[:10], indent=2)}
-
-=== TOP PERFORMING VIDEOS ===
-{top_performers_json}
-
-=== LOW PERFORMING VIDEOS ===
-{low_performers_json}
-
-=== REQUIRED CREATIVE DIRECTION ===
+=== PRIMARY SOUND (REQUIRED) ===
 Primary category MUST be: {suggested_primary}
-Suggested scene location: {scene_hint}
 Suggested secondary sound: {secondary_hint}
 Brown noise rule: {brown_noise_rule}
+Video length: {duration_label} — include exactly "{duration_label}" in the title.
 
-Generate ONE high-quality, unique video idea.
+=== RECENT TITLES TO AVOID (do not repeat or closely paraphrase) ===
+{recent_titles_json}
+
+=== RECENT SOUND COMBOS TO AVOID ===
+{recent_combos_json}
+
+=== TOP PERFORMING VIDEOS (learn from these) ===
+{top_performers_json}
+
+=== TITLE RULES — THIS IS THE MOST IMPORTANT PART ===
+The title must mirror EXACTLY how a real person searches YouTube at 2am when they cannot sleep.
+
+GOOD title formula: "[Sound] for [Specific Problem] | [Duration] | [Differentiator]"
+
+GOOD title examples (study these):
+- "Rain Sounds for Sleeping | {duration_label} | No Music No Talking"
+- "Brown Noise for ADHD Focus | {duration_label} | No Interruptions"
+- "Thunderstorm at Night for Deep Sleep | {duration_label} | Heavy Rain Sounds"
+- "Fireplace Crackling for Sleep | {duration_label} | Cozy Cabin Ambience"
+- "Ocean Waves for Deep Sleep | {duration_label} | No Music"
+- "River Sounds for Sleep | {duration_label} | Relaxing Water Sounds"
+- "Soft Rain on Window | {duration_label} | Sleep Sounds No Music"
+- "Forest Night Sounds for Sleep | {duration_label} | Crickets and Wind"
+
+BAD titles (never generate these):
+- "Gentle Rain and River Sounds for Deep Sleep & Relaxation"
+- "Midnight Cabin Ambience | 10 Hours"
+- "Rain on a Mountain Cabin Roof | Deep Sleep | 10 Hours"
+- Anything that sounds like a movie title instead of a search query
+- Anything that starts with a location/scene instead of the sound
+
+Rules:
+- Start the title with the SOUND TYPE, not the scene or mood
+- Include the exact search phrase people use (e.g. "for sleeping", "for ADHD", "for studying")
+- Include "{duration_label}" in the title
+- Include a differentiator at the end ("No Music", "No Talking", "No Ads", "Uninterrupted")
+- Under 90 characters
+- Use 2-3 sound layers total
+
+=== THUMBNAIL TEXT ===
+Must be 2 words maximum, directly naming the sound. Examples:
+- "RAIN SOUNDS", "BROWN NOISE", "FIREPLACE", "OCEAN WAVES", "RIVER SOUNDS", "FOREST NIGHT"
+Do NOT use cabin/scene names. People click when they see exactly what they searched for.
 
 === CONTENT TIER ===
 This upload is: {content_tier.upper()}
-If FLAGSHIP, make it feel like a weekly hero asset: more cinematic, more specific, more memorable, and strong enough to create 3 Shorts from.
-If STANDARD, keep it high quality but simpler and repeatable.
 
-Hard rules:
-- Do NOT repeat or closely paraphrase any recent title.
-- Do NOT reuse the same sound combination as a recent video.
-- Title must be scene-first, not sound-first.
-- Title format: "[Specific Place/Event] | [Utility Keyword] | [Duration]"
-- Good examples: "Rain on a Mountain Cabin Roof | Deep Sleep | 10 Hours", "Snowstorm Outside an Old Library | Fireplace Sleep | 8 Hours"
-- Bad examples: "Gentle Rain and River Sounds for Deep Sleep", "Relaxing Sleep Sounds", "Brown Noise for Sleep"
-- Title must be under 90 characters.
-- Use 2-3 sound layers total.
-- Keep it calm, cozy, dark, and suitable for sleep or focus.
-- The first 30 seconds must feel premium immediately: gentle fade-in, clear sound identity, no jarring moments.
-- Use the channel name exactly as "Midnight Cabin" when needed.
-- Avoid promises like "no ads". Use "uninterrupted", "no vocals", "no sudden sounds", or "no mid-roll interruptions" instead.
-- Do not make medical claims. Use soft phrasing such as "many listeners use this for..." or "can help create a steadier background..."
-- Return ONLY valid JSON. No markdown, no explanation, no duplicate keys.
-
-JSON structure (return exactly this, no extra fields outside it):
+Return ONLY valid JSON, no markdown, no explanation:
 {{
   "theme": "...",
   "title": "...",
-  "storyline": "2-3 immersive sentences in second person. Make the viewer feel inside this exact scene.",
-  "unique_angle": "What makes this video meaningfully different from recent uploads?",
-  "first_30_seconds": "What the viewer hears/sees immediately after clicking.",
+  "storyline": "2-3 immersive sentences describing the scene for the description.",
+  "unique_angle": "What specific search query does this target?",
+  "first_30_seconds": "What the viewer hears immediately after clicking.",
   "retention_hook": "Why someone would keep this playing for hours.",
   "sound_layers": ["...", "..."],
-  "visual": "specific, cinematic visual scene with lighting and location details",
-  "thumbnail_text": "2-4 word emotional thumbnail phrase",
+  "visual": "specific cinematic visual scene with lighting and location details, no people",
+  "thumbnail_text": "2 WORDS MAX — the sound name in caps",
   "content_tier": "{content_tier}",
   "is_flagship": {str(is_flagship).lower()},
   "flagship_package": {{
-    "hero_reason": "If flagship, why this deserves flagship treatment. If standard, say standard upload.",
+    "hero_reason": "Why this video targets a high-search-volume query.",
     "shorts": [
-      "Short idea 1: emotional POV",
-      "Short idea 2: calming observation",
-      "Short idea 3: save/use-case angle"
+      "Short idea 1: hook about why this sound helps sleep",
+      "Short idea 2: POV of being in the scene",
+      "Short idea 3: save-this-for-tonight angle"
     ]
   }},
   "duration_minutes": {next_duration_minutes},
   "audio_strategy": {{
     "primary_category": "{suggested_primary}",
     "secondary_category": "...",
-    "mood": "...",
-    "intensity": "low/medium/high"
+    "mood": "calm",
+    "intensity": "low"
   }},
-  "learning_reason": "..."
+  "learning_reason": "What search query this targets and why it will rank."
 }}
 """
 
@@ -548,16 +548,37 @@ if not idea:
     if include_brown_noise and "brown_noise" not in layer_list:
         layer_list.append("brown_noise")
     title_sound = suggested_primary.replace("_", " ").title()
+    # Fallback titles are search-first: Sound + Problem + Duration + Differentiator
+    fallback_titles = {
+        "rain":         f"Rain Sounds for Sleeping | {duration_label} | No Music No Talking",
+        "river":        f"River Sounds for Sleep | {duration_label} | Relaxing Water Sounds",
+        "fireplace":    f"Fireplace Crackling for Sleep | {duration_label} | Cozy Cabin Sounds",
+        "ocean_waves":  f"Ocean Waves for Deep Sleep | {duration_label} | No Music",
+        "soft_wind":    f"Soft Wind Sounds for Sleep | {duration_label} | Gentle Night Ambience",
+        "night_forest": f"Forest Night Sounds for Sleep | {duration_label} | Crickets and Wind",
+        "brown_noise":  f"Brown Noise for ADHD Focus | {duration_label} | No Interruptions",
+        "thunder":      f"Thunderstorm for Sleep | {duration_label} | Heavy Rain Sounds",
+    }
+    fallback_thumbnail = {
+        "rain":         "RAIN SOUNDS",
+        "river":        "RIVER SOUNDS",
+        "fireplace":    "FIREPLACE",
+        "ocean_waves":  "OCEAN WAVES",
+        "soft_wind":    "WIND SOUNDS",
+        "night_forest": "FOREST NIGHT",
+        "brown_noise":  "BROWN NOISE",
+        "thunder":      "THUNDERSTORM",
+    }
     idea = {
-        "theme": f"{scene_hint} {title_sound} Ambience",
-        "title": f"{scene_hint} | {title_sound} Sleep | {duration_label}",
-        "storyline": f"You are tucked inside the {scene_hint.lower()} while the outside world fades into a slow, steady hush. The sound stays soft and predictable, giving your mind one quiet place to rest.",
-        "unique_angle": f"A specific {scene_hint.lower()} setting with a {suggested_primary.replace('_', ' ')}-first mix instead of a generic sleep sound loop.",
-        "first_30_seconds": "A gentle fade-in, clear primary sound identity, and no sudden volume changes.",
-        "retention_hook": "The mix stays stable and low-distraction for overnight listening or long focus sessions.",
+        "theme": f"{title_sound} Sleep Sounds",
+        "title": fallback_titles.get(suggested_primary, f"{title_sound} Sounds for Sleep | {duration_label} | No Music"),
+        "storyline": f"Steady {suggested_primary.replace('_', ' ')} sounds play uninterrupted for {duration_label}. No music, no talking, no sudden changes — just the sound you searched for.",
+        "unique_angle": f"Targets the search query '{suggested_primary.replace('_', ' ')} sounds for sleeping {duration_label.lower()}'.",
+        "first_30_seconds": "Immediate fade-in of the primary sound — no intro, no music, just the sound.",
+        "retention_hook": "Consistent uninterrupted audio with no sudden changes, safe for overnight playback.",
         "sound_layers": layer_list[:3],
-        "visual": f"dark cozy {scene_hint.lower()}, cinematic low light, no people, slow atmospheric movement",
-        "thumbnail_text": scene_hint.split()[0].upper() + " CABIN",
+        "visual": f"dark cozy cabin interior, {suggested_primary.replace('_', ' ')} visible outside window, warm amber light, cinematic low light, no people",
+        "thumbnail_text": fallback_thumbnail.get(suggested_primary, title_sound.upper()),
         "content_tier": content_tier,
         "is_flagship": is_flagship,
         "flagship_package": {

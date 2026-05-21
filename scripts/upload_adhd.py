@@ -221,4 +221,4 @@ print(f"ADHD video saved to history: {video_id}")
 
 # Pin comment and community post
 pin_comment(youtube, video_id, primary, duration_label, layers, idea, "adhd")
-post_community_update(youtube, video_id, title if "title" in dir() else study_title if "study_title" in dir() else adhd_title if "adhd_title" in dir() else dark_title, primary, duration_label)
+post_community_update(youtube, video_id, adhd_title, primary, duration_label)

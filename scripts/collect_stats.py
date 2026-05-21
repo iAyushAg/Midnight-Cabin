@@ -35,38 +35,38 @@ with open(HISTORY_FILE, "r") as f:
     history = json.load(f)
 
 # ─────────────────────────────────────────────
-# UPDATE STATS FOR ALL VIDEOS
+# UPDATE STATS FOR ALL VIDEOS — batched (50 per request)
+# YouTube API allows up to 50 IDs per videos.list call
+# Batching reduces API quota usage from N calls to ceil(N/50) calls
 # ─────────────────────────────────────────────
-for item in history:
-    video_id = item.get("video_id")
-    if not video_id:
-        continue
+video_ids = [item.get("video_id") for item in history if item.get("video_id")]
+id_to_item = {item["video_id"]: item for item in history if item.get("video_id")}
 
+BATCH_SIZE = 50
+for i in range(0, len(video_ids), BATCH_SIZE):
+    batch = video_ids[i:i + BATCH_SIZE]
     try:
         response = youtube.videos().list(
             part="statistics,status",
-            id=video_id
+            id=",".join(batch)
         ).execute()
 
-        videos = response.get("items", [])
-        if not videos:
-            continue
-
-        stats = videos[0].get("statistics", {})
-        status = videos[0].get("status", {})
-
-        views = int(stats.get("viewCount", 0))
-        impressions = int(stats.get("favoriteCount", 0)) or 1  # fallback; real impressions need Analytics API
-
-        item["performance"] = {
-            "views": views,
-            "likes": int(stats.get("likeCount", 0)),
-            "comments": int(stats.get("commentCount", 0)),
-            "privacy_status": status.get("privacyStatus")
-        }
+        for video in response.get("items", []):
+            vid_id = video["id"]
+            stats = video.get("statistics", {})
+            status = video.get("status", {})
+            item = id_to_item.get(vid_id)
+            if not item:
+                continue
+            item["performance"] = {
+                "views": int(stats.get("viewCount", 0)),
+                "likes": int(stats.get("likeCount", 0)),
+                "comments": int(stats.get("commentCount", 0)),
+                "privacy_status": status.get("privacyStatus")
+            }
 
     except Exception as e:
-        print(f"Could not fetch stats for {video_id}: {e}")
+        print(f"Could not fetch stats for batch {i//BATCH_SIZE + 1}: {e}")
 
 # ─────────────────────────────────────────────
 # UPDATE A/B CTR LOG

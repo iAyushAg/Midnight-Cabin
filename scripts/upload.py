@@ -90,37 +90,50 @@ is_flagship = idea.get("is_flagship") or idea.get("content_tier") == "flagship"
 production_note = get_production_note("main", is_flagship)
 quality_summary = get_quality_summary(idea)
 
-description = f"""{storyline}
+# Per-niche hashtags — signal correct topic to YouTube classifier
+primary_hashtags = {
+    "rain":         "#RainSounds #RainSoundsForSleeping #RainSoundsForStudying #RainyNight",
+    "river":        "#RiverSounds #WaterSounds #NatureSoundsForSleep #StreamSounds",
+    "fireplace":    "#FireplaceSounds #CozySounds #FireplaceAmbience #CracklingFire",
+    "ocean_waves":  "#OceanSounds #OceanWaves #BeachSounds #WaveSounds",
+    "soft_wind":    "#WindSounds #NightSounds #NatureAmbience #SoftWind",
+    "night_forest": "#ForestSounds #NatureSounds #NightForest #CricketSounds",
+    "brown_noise":  "#BrownNoise #BrownNoiseADHD #BrownNoiseForFocus #ADHDFocus",
+    "thunder":      "#ThunderstormSounds #RainAndThunder #StormSounds #Thunderstorm",
+}
+sound_hashtags = primary_hashtags.get(primary, "#SleepSounds #AmbientSounds")
 
-{duration_label} of uninterrupted {primary.replace("_", " ")} sounds for deep sleep, relaxation, and focused work. No mid-roll interruptions, no vocals, no sudden sounds.
+description = f"""{primary.replace("_", " ").title()} sounds for sleeping — {duration_label} of uninterrupted audio with no music, no talking, and no sudden sounds.
+
+{storyline}
+
+✅ What you get:
+• {duration_label} of pure {primary.replace("_", " ")} sounds — no mid-roll interruptions
+• No music, no vocals, no sudden volume changes
+• Safe for overnight playback and all-night listening
+• Works with sleep timers and screen-off mode
+
+🎧 Best for:
+• Falling asleep to {primary.replace("_", " ")} sounds
+• Blocking out background noise while studying or working
+• ADHD focus and deep work sessions
+• Meditation, anxiety relief, and unwinding
+
+🎵 Sound layers: {", ".join(layers)}
+⏱ Duration: {duration_label}
 
 {quality_summary}
 
-Best for:
-• Falling asleep faster on a restless night
-• Study sessions, deep work, and ADHD focus
-• Meditation, mindfulness, and unwinding
-• Reading, journaling, and creative work
-• Background ambience while working from home
-
-Whether you're in London, New York, Sydney, or Mumbai — let this play quietly in the background tonight.
-
-🎵 Sound layers: {", ".join(layers)}
-🌙 Mood: {mood.capitalize()}
-⏱ Duration: {duration_label}
-
-Subscribe @midnightcabins for new Midnight Cabin soundscapes.
-
-{production_note}
-
 📌 Chapters:
 {chapters}
+
+{production_note}
 
 {ai_disclosure}
 
 {sound_credits}
 
-#SleepSounds #AmbientSounds #BrownNoise #Relaxation #FocusMusic #DeepSleep #SleepMusic #RainSounds #StudyMusic #ADHDFocus
+{sound_hashtags} #SleepSounds #DeepSleep #AmbientSounds #SleepMusic #RelaxingSounds #FocusMusic #StudyMusic #NatureSounds #Uninterrupted
 """
 
 # ─────────────────────────────────────────────
@@ -144,7 +157,41 @@ request = youtube.videos().insert(
     media_body=MediaFileUpload(VIDEO_FILE, chunksize=-1, resumable=True)
 )
 
-response = request.execute()
+# Retry upload up to 3 times with backoff on transient errors
+import time as _time
+response = None
+for attempt in range(3):
+    try:
+        response = request.execute()
+        break
+    except Exception as upload_err:
+        if attempt < 2:
+            wait = 30 * (attempt + 1)
+            print(f"Upload attempt {attempt+1} failed: {upload_err} — retrying in {wait}s")
+            _time.sleep(wait)
+            # Re-create request for retry
+            request = youtube.videos().insert(
+                part="snippet,status",
+                body={
+                    "snippet": {
+                        "title": idea["title"],
+                        "description": description,
+                        "tags": all_tags,
+                        "categoryId": "10"
+                    },
+                    "status": {
+                        "privacyStatus": "public",
+                        "selfDeclaredMadeForKids": False
+                    }
+                },
+                media_body=MediaFileUpload(VIDEO_FILE, chunksize=-1, resumable=True)
+            )
+        else:
+            raise
+
+if not response:
+    raise RuntimeError("Upload failed after 3 attempts")
+
 print("Upload response:", response)
 video_id = response["id"]
 print(f"Video uploaded: https://youtube.com/watch?v={video_id}")

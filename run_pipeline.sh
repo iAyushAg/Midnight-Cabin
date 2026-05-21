@@ -135,21 +135,17 @@ echo "Duration: $DURATION_MINUTES min"
 # ─────────────────────────────────────────────────────────
 python3 scripts/generate_visual.py || echo "Visual generation failed — continuing with existing image"
 
-# Re-encode animated bg to strip Late SEI warnings (runs once per new file)
-if [ -f "$PERSISTENT_DIR/bg_animated.mp4" ] && [ ! -f "$PERSISTENT_DIR/bg_animated.mp4.clean" ]; then
-    echo "Re-encoding bg_animated.mp4 to strip Late SEI warnings..."
-    ffmpeg -i "$PERSISTENT_DIR/bg_animated.mp4" \
-        -c:v libx264 -profile:v high -level 4.1 \
-        -pix_fmt yuv420p -movflags +faststart \
-        "$PERSISTENT_DIR/bg_animated_clean.mp4" && \
-    mv "$PERSISTENT_DIR/bg_animated.mp4" "$PERSISTENT_DIR/bg_animated_backup.mp4" && \
-    mv "$PERSISTENT_DIR/bg_animated_clean.mp4" "$PERSISTENT_DIR/bg_animated.mp4" && \
-    touch "$PERSISTENT_DIR/bg_animated.mp4.clean" && \
-    echo "Re-encode done" || echo "Re-encode failed (non-fatal)"
-fi
-
 echo "Visual folder:"
 ls -lh video || true
+
+# ─────────────────────────────────────────────────────────
+# RE-ENCODE ANIMATED BG TO STRIP LATE SEI WARNINGS
+# Runs once per new file — sentinel file prevents re-running
+# ─────────────────────────────────────────────────────────
+if [ -f "$PERSISTENT_DIR/bg_animated.mp4" ] && [ ! -f "$PERSISTENT_DIR/bg_animated.mp4.clean" ]; then
+    echo "Re-encoding bg_animated.mp4 to strip Late SEI warnings..."
+    ffmpeg -i "$PERSISTENT_DIR/bg_animated.mp4"         -c:v libx264 -profile:v high -level 4.1         -pix_fmt yuv420p -movflags +faststart         "$PERSISTENT_DIR/bg_animated_clean.mp4" &&     mv "$PERSISTENT_DIR/bg_animated.mp4" "$PERSISTENT_DIR/bg_animated_backup.mp4" &&     mv "$PERSISTENT_DIR/bg_animated_clean.mp4" "$PERSISTENT_DIR/bg_animated.mp4" &&     touch "$PERSISTENT_DIR/bg_animated.mp4.clean" &&     echo "Re-encode done" || echo "Re-encode failed (non-fatal)"
+fi
 
 # ─────────────────────────────────────────────────────────
 # FETCH AUDIO
@@ -344,6 +340,21 @@ notify "🎬 Midnight Cabin — uploading $VIDEO_TYPE video..."
 # ─────────────────────────────────────────────────────────
 echo "Generating thumbnail..."
 python3 scripts/generate_thumbnail.py || echo "Thumbnail skipped"
+
+# ─────────────────────────────────────────────────────────
+# QUALITY GATE — catch broken renders before upload
+# Stops upload if video has no audio, wrong duration, or is too small
+# ─────────────────────────────────────────────────────────
+echo "Running quality gate..."
+python3 scripts/quality_gate.py     --video output/video.mp4     --type "$VIDEO_TYPE"     --expected-minutes "$DURATION_MINUTES"     --sample-seconds 60
+
+GATE_EXIT=$?
+if [ $GATE_EXIT -ne 0 ]; then
+    echo "❌ Quality gate FAILED — aborting upload to prevent bad content going live"
+    notify "❌ Quality gate failed for $VIDEO_TYPE — upload skipped. Check quality_gate_report.json"
+    exit 1
+fi
+echo "✅ Quality gate passed"
 
 # ─────────────────────────────────────────────────────────
 # UPLOAD

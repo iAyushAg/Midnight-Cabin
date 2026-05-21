@@ -4,6 +4,7 @@ upload_short.py — uploads output/short.mp4 as a YouTube Short
 
 import os
 import json
+import random
 from datetime import datetime
 
 from googleapiclient.discovery import build

@@ -510,7 +510,7 @@ if USE_LOOP:
     # Loop the 5s animated clip, take audio from main video
     if has_voiceover and os.path.exists(VOICEOVER_PATH):
         filter_complex = (
-            f"[1:a]ss={START_OFFSET},{ambient_fade},volume=0.5[ambient];"
+            f"[1:a]{ambient_fade},volume=0.5[ambient];"
             f"[2:a]volume=1.1,adelay=300|300[vo];"
             f"[ambient][vo]amix=inputs=2:duration=first:weights=1 1[audio]"
         )

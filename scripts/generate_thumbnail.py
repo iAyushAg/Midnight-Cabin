@@ -37,23 +37,41 @@ def split_thumbnail_text(text):
 
 main_text = split_thumbnail_text(idea.get("thumbnail_text"))
 
+# Thumbnail text must show the SOUND TYPE so viewers instantly recognise what they searched for.
+# Never use location/scene names like "RAINY CABIN" — use sound names like "RAIN SOUNDS".
+SOUND_THUMBNAIL_TEXT = {
+    "rain":         "RAIN\nSOUNDS",
+    "river":        "RIVER\nSOUNDS",
+    "fireplace":    "FIRE\nSOUNDS",
+    "ocean_waves":  "OCEAN\nWAVES",
+    "soft_wind":    "WIND\nSOUNDS",
+    "night_forest": "FOREST\nNIGHT",
+    "brown_noise":  "BROWN\nNOISE",
+    "thunder":      "THUNDER\nSTORM",
+}
+
+# Get primary from idea audio_strategy
+primary_cat = idea.get("audio_strategy", {}).get("primary_category", "")
+
 if not main_text:
-    if "rain" in title or "rain" in layers:
-        main_text = "RAINY\nCABIN"
+    if primary_cat in SOUND_THUMBNAIL_TEXT:
+        main_text = SOUND_THUMBNAIL_TEXT[primary_cat]
+    elif "rain" in layers:
+        main_text = "RAIN\nSOUNDS"
     elif "brown_noise" in layers or "focus" in title:
-        main_text = "FOCUS\nMODE"
+        main_text = "BROWN\nNOISE"
     elif "fireplace" in layers:
-        main_text = "FIREPLACE\nROOM"
+        main_text = "FIRE\nSOUNDS"
     elif "ocean" in layers:
-        main_text = "OCEAN\nCABIN"
+        main_text = "OCEAN\nWAVES"
     elif "river" in layers:
-        main_text = "RIVERSIDE\nCABIN"
+        main_text = "RIVER\nSOUNDS"
     elif "wind" in layers:
-        main_text = "MIDNIGHT\nWIND"
+        main_text = "WIND\nSOUNDS"
     elif "forest" in layers or "night_forest" in layers:
         main_text = "FOREST\nNIGHT"
     else:
-        main_text = "DEEP\nSLEEP"
+        main_text = "SLEEP\nSOUNDS"
 
 sub_text_a = f"{duration_label} • UNINTERRUPTED"
 sub_text_b = f"{duration_label} • NO SUDDEN SOUNDS"
