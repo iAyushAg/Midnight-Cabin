@@ -29,7 +29,7 @@ SHORT_OUTPUT = os.path.join(BASE_DIR, "output", "short.mp4")
 VOICEOVER_PATH = os.path.join(BASE_DIR, "output", "voiceover.mp3")
 SHORT_ROTATION_FILE = os.path.join(PERSISTENT_DIR, "short_hook_rotation.json")
 
-SHORT_DURATION = 38  # 30-45 seconds — optimal for Shorts retention
+SHORT_DURATION = 28  # Under 30s gets stronger algorithmic push in Shorts feed
 
 # ─────────────────────────────────────────────
 # LOAD IDEA
@@ -288,17 +288,18 @@ cta_text_display = strip_emojis(cta_text)
 # THEME-SPECIFIC START OFFSETS
 # Best-sounding moment per theme
 # ─────────────────────────────────────────────
-START_OFFSETS = {
-    "rain":         45,   # rain settles into rhythm at ~45s
-    "fireplace":    30,   # crackles most present early on
-    "river":        60,   # river flows consistently from 1min
-    "ocean_waves":  90,   # waves establish their rhythm by 90s
-    "soft_wind":    30,   # wind is fullest early
-    "night_forest": 120,  # forest settles after 2min
-    "brown_noise":  10,   # brown noise is consistent from the start
+START_OFFSET_RANGES = {
+    "rain":         (30,  180),
+    "fireplace":    (20,  120),
+    "river":        (45,  240),
+    "ocean_waves":  (60,  300),
+    "soft_wind":    (20,  150),
+    "night_forest": (90,  300),
+    "brown_noise":  (5,   120),
+    "thunder":      (30,  180),
 }
-
-START_OFFSET = START_OFFSETS.get(primary, 60)
+lo, hi = START_OFFSET_RANGES.get(primary, (30, 180))
+START_OFFSET = random.randint(lo, hi)
 print(f"Starting Short at offset: {START_OFFSET}s")
 
 # ─────────────────────────────────────────────
@@ -456,6 +457,7 @@ print(f"Using font: {FONT_FILE or 'ffmpeg default'}")
 vf = (
     f"scale=1080:1920:force_original_aspect_ratio=increase,"
     f"crop=1080:1920,"
+    f"{color_grade},"
     f"drawtext=text='{hook_wrapped}'{font_attr}"
     f":fontsize=38:fontcolor=white"
     f":x=(w-text_w)/2:y=h/4"
@@ -473,11 +475,55 @@ vf = (
 )
 
 # ─────────────────────────────────────────────
-# PICK VIDEO SOURCE
-# Priority: bg_animated.mp4 (Kling animated) > output/video.mp4
-# bg_animated gives the animated rain/fire background in Shorts
+# PICK VIDEO SOURCE — niche-aware
+# Only use bg_animated.mp4 if it matches the current niche.
+# If niche changed (e.g. rain clip but Short needs fireplace),
+# pick a matching library image instead.
 # ─────────────────────────────────────────────
-ambient_fade = "afade=t=in:st=0:d=3"
+LIBRARY_DIR = os.path.join(BASE_DIR, "video", "library")
+
+def pick_library_image_for_niche(niche):
+    folder = os.path.join(LIBRARY_DIR, niche)
+    if not os.path.exists(folder):
+        folder = LIBRARY_DIR
+    if not os.path.exists(folder):
+        return None
+    images = [os.path.join(folder, f) for f in os.listdir(folder)
+              if f.lower().endswith((".jpg", ".jpeg", ".png"))]
+    return random.choice(images) if images else None
+
+VISUAL_META_PATH = os.path.join(PERSISTENT_DIR, "current_visual.json")
+animated_niche = None
+try:
+    if os.path.exists(VISUAL_META_PATH):
+        with open(VISUAL_META_PATH) as _vmf: _vm = json.load(_vmf)
+        animated_niche = _vm.get("primary") or _vm.get("primary_category")
+except Exception:
+    pass
+NICHE_AUDIO_EQ = {
+    "rain":         "equalizer=f=200:width_type=o:width=2:g=1,equalizer=f=8000:width_type=o:width=2:g=-3",
+    "fireplace":    "equalizer=f=100:width_type=o:width=2:g=3,equalizer=f=6000:width_type=o:width=2:g=-4",
+    "river":        "equalizer=f=500:width_type=o:width=2:g=2,equalizer=f=8000:width_type=o:width=2:g=-2",
+    "ocean_waves":  "equalizer=f=150:width_type=o:width=2:g=2,equalizer=f=7000:width_type=o:width=2:g=-3",
+    "soft_wind":    "equalizer=f=300:width_type=o:width=2:g=1,equalizer=f=9000:width_type=o:width=2:g=-2",
+    "night_forest": "equalizer=f=400:width_type=o:width=2:g=2,equalizer=f=8000:width_type=o:width=2:g=-2",
+    "brown_noise":  "equalizer=f=100:width_type=o:width=2:g=2,equalizer=f=5000:width_type=o:width=2:g=-1",
+    "thunder":      "equalizer=f=80:width_type=o:width=2:g=4,equalizer=f=8000:width_type=o:width=2:g=-5",
+}
+niche_eq = NICHE_AUDIO_EQ.get(primary, "")
+ambient_fade = f"afade=t=in:st=0:d=2,{niche_eq}" if niche_eq else "afade=t=in:st=0:d=2"
+
+NICHE_COLOR_GRADE = {
+    "rain":         "eq=contrast=1.05:saturation=0.75:brightness=-0.04,colorbalance=bs=0.04",
+    "fireplace":    "eq=contrast=1.08:saturation=1.15:brightness=0.02,colorbalance=rs=0.06",
+    "river":        "eq=contrast=1.04:saturation=0.85:brightness=-0.02,colorbalance=gs=0.03",
+    "ocean_waves":  "eq=contrast=1.06:saturation=0.80:brightness=-0.03,colorbalance=bs=0.05",
+    "soft_wind":    "eq=contrast=1.03:saturation=0.90:brightness=0.01",
+    "night_forest": "eq=contrast=1.07:saturation=0.70:brightness=-0.05,colorbalance=gs=0.04",
+    "brown_noise":  "eq=contrast=1.04:saturation=0.65:brightness=-0.03",
+    "thunder":      "eq=contrast=1.10:saturation=0.60:brightness=-0.06,colorbalance=bs=0.03",
+}
+color_grade = NICHE_COLOR_GRADE.get(primary, "eq=contrast=1.04:saturation=0.85")
 
 # Check all possible locations for animated video
 BG_ANIMATED_PERSISTENT = os.path.join(PERSISTENT_DIR, "bg_animated.mp4")
@@ -488,23 +534,43 @@ print(f"  bg_animated (persistent): {BG_ANIMATED_PERSISTENT} — exists={os.path
 print(f"  source video:             {SOURCE_VIDEO} — exists={os.path.exists(SOURCE_VIDEO)}")
 print(f"  bg.jpg:                   {BG_IMAGE} — exists={os.path.exists(BG_IMAGE)}")
 
-if os.path.exists(BG_ANIMATED):
-    print(f"✅ Using animated bg (app dir)")
+animated_matches_niche = (animated_niche is None or animated_niche == primary)
+
+if os.path.exists(BG_ANIMATED) and animated_matches_niche:
+    print(f"✅ Using animated bg — niche matches: {primary}")
     SHORT_VIDEO_SOURCE = BG_ANIMATED
     USE_LOOP = True
-elif os.path.exists(BG_ANIMATED_PERSISTENT):
-    print(f"✅ Using animated bg (persistent dir)")
+elif os.path.exists(BG_ANIMATED_PERSISTENT) and animated_matches_niche:
+    print(f"✅ Using animated bg (persistent) — niche matches: {primary}")
     SHORT_VIDEO_SOURCE = BG_ANIMATED_PERSISTENT
-    # Copy back to app dir for this run
     import shutil as _shutil2
     _shutil2.copy(BG_ANIMATED_PERSISTENT, BG_ANIMATED)
     USE_LOOP = True
-elif os.path.exists(SOURCE_VIDEO):
-    print(f"⚠️  No animated bg found — using main video")
-    SHORT_VIDEO_SOURCE = SOURCE_VIDEO
-    USE_LOOP = False
 else:
-    raise FileNotFoundError("No video source found for Short")
+    if not animated_matches_niche:
+        print(f"⚠️  Animated bg is niche '{animated_niche}' but need '{primary}' — using library image")
+    library_image = pick_library_image_for_niche(primary)
+    if library_image:
+        print(f"✅ Using library image for '{primary}': {library_image}")
+        STATIC_BG = os.path.join(BASE_DIR, "output", "short_bg_static.mp4")
+        static_result = subprocess.run([
+            "ffmpeg", "-y", "-loop", "1", "-i", library_image,
+            "-t", str(SHORT_DURATION + 5),
+            "-vf", f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,{color_grade},format=yuv420p",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-r", "30", STATIC_BG
+        ], capture_output=True, text=True)
+        if static_result.returncode == 0:
+            SHORT_VIDEO_SOURCE = STATIC_BG
+            USE_LOOP = True
+        else:
+            SHORT_VIDEO_SOURCE = SOURCE_VIDEO if os.path.exists(SOURCE_VIDEO) else None
+            USE_LOOP = False
+    elif os.path.exists(SOURCE_VIDEO):
+        print(f"⚠️  No library image for '{primary}' — using main video")
+        SHORT_VIDEO_SOURCE = SOURCE_VIDEO
+        USE_LOOP = False
+    else:
+        raise FileNotFoundError("No video source found for Short")
 
 if USE_LOOP:
     # Loop the 5s animated clip, take audio from main video

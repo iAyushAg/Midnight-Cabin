@@ -27,7 +27,7 @@ import json, os
 PERSISTENT_DIR = os.environ.get("PERSISTENT_DIR", "/data")
 HISTORY_FILE = os.path.join(PERSISTENT_DIR, "video_history.json")
 DEFAULT_INTERVAL = 48 * 3600  # 48 hours between main videos
-BOOST_INTERVAL   = 24 * 3600  # 24 hours if a long-form video hits 500+ views
+BOOST_INTERVAL   = 24 * 3600  # 24 hours if a video hits 500+ views
 
 if not os.path.exists(HISTORY_FILE):
     print(DEFAULT_INTERVAL)
@@ -44,19 +44,14 @@ if not history:
     print(DEFAULT_INTERVAL)
     exit()
 
-# Only check long-form videos for the boost threshold — not Shorts
-# A Short with 500 views should not trigger faster long-form uploads
+# Only check long-form videos — a Short with 500 views should not
+# trigger faster long-form upload cadence
 long_form_types = {"main", "adhd", "dark_screen", "study_with_me"}
 long_form = [v for v in history if v.get("type", "main") in long_form_types]
-
 if not long_form:
     print(DEFAULT_INTERVAL)
     exit()
-
-# Check if any recent long-form video is performing well
-recent_long_form = long_form[-5:]  # last 5 long-form videos
-max_views = max(v.get("performance", {}).get("views", 0) for v in recent_long_form)
-
+max_views = max(v.get("performance", {}).get("views", 0) for v in long_form[-5:])
 if max_views >= 500:
     print(BOOST_INTERVAL)
 else:
@@ -97,20 +92,10 @@ while true; do
     echo "Sleeping ${SLEEP_HOURS} hours (${SLEEP_SECS}s)... Next video at: ${WAKE_TIME}"
     notify_telegram "😴 Sleeping for ${SLEEP_HOURS}h — next video at ${WAKE_TIME}"
 
-    # Run Short immediately after main pipeline finishes
-    # This ensures animated bg and fresh idea are available
+    # One Short per main pipeline cycle — posting too many identical Shorts
+    # signals spam to YouTube and suppresses all content on the channel
     echo "Running Short pipeline (post-main)..."
     bash run_short_pipeline.sh || echo "Short pipeline failed (non-fatal)"
-    WAKE_TIME_SHORT=$(get_wake_time $SHORT_INTERVAL)
-    notify_telegram "🎬 Next Short at ${WAKE_TIME_SHORT}"
 
-    # Sleep, then run another Short midway before next main video
-    sleep $SHORT_INTERVAL
-
-    echo "Running Short pipeline (midpoint)..."
-    bash run_short_pipeline.sh || echo "Short pipeline failed (non-fatal)"
-    WAKE_TIME_SHORT=$(get_wake_time $SHORT_INTERVAL)
-    notify_telegram "🎬 Next Short at ${WAKE_TIME_SHORT}"
-
-    sleep $SHORT_INTERVAL
+    sleep $SLEEP_SECS
 done

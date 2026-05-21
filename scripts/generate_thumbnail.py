@@ -37,9 +37,9 @@ def split_thumbnail_text(text):
 
 main_text = split_thumbnail_text(idea.get("thumbnail_text"))
 
-# Thumbnail text must show the SOUND TYPE so viewers instantly recognise what they searched for.
-# Never use location/scene names like "RAINY CABIN" — use sound names like "RAIN SOUNDS".
-SOUND_THUMBNAIL_TEXT = {
+# Thumbnail text shows the SOUND NAME — what people searched for
+# People click when they see exactly what they searched for
+SOUND_THUMBNAIL = {
     "rain":         "RAIN\nSOUNDS",
     "river":        "RIVER\nSOUNDS",
     "fireplace":    "FIRE\nSOUNDS",
@@ -49,13 +49,11 @@ SOUND_THUMBNAIL_TEXT = {
     "brown_noise":  "BROWN\nNOISE",
     "thunder":      "THUNDER\nSTORM",
 }
-
-# Get primary from idea audio_strategy
 primary_cat = idea.get("audio_strategy", {}).get("primary_category", "")
 
 if not main_text:
-    if primary_cat in SOUND_THUMBNAIL_TEXT:
-        main_text = SOUND_THUMBNAIL_TEXT[primary_cat]
+    if primary_cat in SOUND_THUMBNAIL:
+        main_text = SOUND_THUMBNAIL[primary_cat]
     elif "rain" in layers:
         main_text = "RAIN\nSOUNDS"
     elif "brown_noise" in layers or "focus" in title:

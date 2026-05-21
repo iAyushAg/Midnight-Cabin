@@ -90,7 +90,6 @@ is_flagship = idea.get("is_flagship") or idea.get("content_tier") == "flagship"
 production_note = get_production_note("main", is_flagship)
 quality_summary = get_quality_summary(idea)
 
-# Per-niche hashtags — signal correct topic to YouTube classifier
 primary_hashtags = {
     "rain":         "#RainSounds #RainSoundsForSleeping #RainSoundsForStudying #RainyNight",
     "river":        "#RiverSounds #WaterSounds #NatureSoundsForSleep #StreamSounds",
@@ -157,41 +156,26 @@ request = youtube.videos().insert(
     media_body=MediaFileUpload(VIDEO_FILE, chunksize=-1, resumable=True)
 )
 
-# Retry upload up to 3 times with backoff on transient errors
 import time as _time
 response = None
-for attempt in range(3):
+for _attempt in range(3):
     try:
         response = request.execute()
         break
-    except Exception as upload_err:
-        if attempt < 2:
-            wait = 30 * (attempt + 1)
-            print(f"Upload attempt {attempt+1} failed: {upload_err} — retrying in {wait}s")
-            _time.sleep(wait)
-            # Re-create request for retry
+    except Exception as _upload_err:
+        if _attempt < 2:
+            _wait = 30 * (_attempt + 1)
+            print(f"Upload attempt {_attempt+1} failed: {_upload_err} — retrying in {_wait}s")
+            _time.sleep(_wait)
             request = youtube.videos().insert(
                 part="snippet,status",
-                body={
-                    "snippet": {
-                        "title": idea["title"],
-                        "description": description,
-                        "tags": all_tags,
-                        "categoryId": "10"
-                    },
-                    "status": {
-                        "privacyStatus": "public",
-                        "selfDeclaredMadeForKids": False
-                    }
-                },
+                body={"snippet": {"title": idea["title"], "description": description, "tags": all_tags, "categoryId": "10"}, "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}},
                 media_body=MediaFileUpload(VIDEO_FILE, chunksize=-1, resumable=True)
             )
         else:
             raise
-
 if not response:
     raise RuntimeError("Upload failed after 3 attempts")
-
 print("Upload response:", response)
 video_id = response["id"]
 print(f"Video uploaded: https://youtube.com/watch?v={video_id}")

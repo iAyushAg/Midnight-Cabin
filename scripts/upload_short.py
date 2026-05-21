@@ -116,6 +116,13 @@ TITLE_POOLS = {
             "Brown noise hits different when you're overwhelmed 🧠 #Shorts",
             "When your brain needs one steady sound 🧠 #Shorts",
         ],
+        "thunder":      [
+            "Thunderstorm for sleep 🌩️ #Shorts",
+            "POV: A storm arrived while you were sleeping 🌩️ #Shorts",
+            "Heavy rain and thunder for deep sleep 🌩️ #Shorts",
+            "This thunderstorm will knock you out 🌩️ #Shorts",
+            "When the storm does the work for you 🌩️ #Shorts",
+        ],
     },
     "educational": {
         "rain":         [
@@ -166,6 +173,13 @@ TITLE_POOLS = {
             "The science behind brown noise and ADHD 🧠 #Shorts",
             "Why brown noise works better than white noise 🧠 #Shorts",
             "Brown noise shifts your brain into focus mode 🧠 #Shorts",
+        ],
+        "thunder":      [
+            "Why thunderstorms help you sleep 🌩️ #Shorts",
+            "What thunder does to your nervous system 🌩️ #Shorts",
+            "The science behind storm sounds and sleep 🌩️ #Shorts",
+            "Why your brain relaxes during a storm 🌩️ #Shorts",
+            "Thunderstorm sounds activate deep sleep — here's why 🌩️ #Shorts",
         ],
     },
 }

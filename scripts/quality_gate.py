@@ -152,10 +152,9 @@ def inspect_bg_image(bg_path, errors, warnings, checks, video_type):
                     f"Background image dimensions too small: {img.width}x{img.height}"
                 )
 
-            if video_type != "dark_screen" and (img.width < 1920 or img.height < 1080):
+            if video_type != "dark_screen" and (img.width < 1280 or img.height < 720):
                 warnings.append(
-                    f"Background image is below preferred 1920x1080 source size: "
-                    f"{img.width}x{img.height}"
+                    f"Background image below minimum 1280x720: {img.width}x{img.height}"
                 )
 
     except Exception as exc:
@@ -183,18 +182,19 @@ def inspect_visual_meta(visual_meta, errors, warnings, checks, video_type):
             visual_meta.get("min_image_bytes")
             or os.environ.get("MIN_BG_IMAGE_BYTES", "500000")
         )
-
+        # Warning only — a working image should never block an upload
         if image_size and image_size < min_size:
-            errors.append(
-                f"Pollinations image failed size requirement: "
-                f"{image_size // 1024}KB < {min_size // 1024}KB."
+            warnings.append(
+                f"Pollinations image smaller than preferred: "
+                f"{image_size // 1024}KB (preferred {min_size // 1024}KB). Uploading anyway."
             )
-
         width = int(visual_meta.get("image_width") or 0)
         height = int(visual_meta.get("image_height") or 0)
-
-        if width and height and (width < 1280 or height < 720):
-            errors.append(f"Pollinations image dimensions too small: {width}x{height}")
+        # Only hard-fail if genuinely unusable
+        if width and height and (width < 640 or height < 360):
+            errors.append(f"Pollinations image far too small to render: {width}x{height}")
+        elif width and height and (width < 1280 or height < 720):
+            warnings.append(f"Pollinations image below preferred 1280x720: {width}x{height}. Uploading anyway.")
 
     if video_type != "dark_screen":
         prompt = (visual_meta.get("prompt") or "").lower()

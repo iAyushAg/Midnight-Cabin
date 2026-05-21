@@ -142,9 +142,22 @@ ls -lh video || true
 # RE-ENCODE ANIMATED BG TO STRIP LATE SEI WARNINGS
 # Runs once per new file — sentinel file prevents re-running
 # ─────────────────────────────────────────────────────────
-if [ -f "$PERSISTENT_DIR/bg_animated.mp4" ] && [ ! -f "$PERSISTENT_DIR/bg_animated.mp4.clean" ]; then
-    echo "Re-encoding bg_animated.mp4 to strip Late SEI warnings..."
-    ffmpeg -i "$PERSISTENT_DIR/bg_animated.mp4"         -c:v libx264 -profile:v high -level 4.1         -pix_fmt yuv420p -movflags +faststart         "$PERSISTENT_DIR/bg_animated_clean.mp4" &&     mv "$PERSISTENT_DIR/bg_animated.mp4" "$PERSISTENT_DIR/bg_animated_backup.mp4" &&     mv "$PERSISTENT_DIR/bg_animated_clean.mp4" "$PERSISTENT_DIR/bg_animated.mp4" &&     touch "$PERSISTENT_DIR/bg_animated.mp4.clean" &&     echo "Re-encode done" || echo "Re-encode failed (non-fatal)"
+# Re-encode animated bg to strip Late SEI log spam.
+# Uses mtime-based sentinel so every newly generated clip is re-encoded,
+# not just the first one. Old touch-file sentinel was wrong: Kling generates
+# a new clip each run but the old sentinel still existed, skipping re-encode.
+if [ -f "$PERSISTENT_DIR/bg_animated.mp4" ]; then
+    ANIM_MTIME=$(stat -c %Y "$PERSISTENT_DIR/bg_animated.mp4" 2>/dev/null || echo "0")
+    SENTINEL="$PERSISTENT_DIR/bg_animated.mp4.clean"
+    SENTINEL_MTIME="0"
+    [ -f "$SENTINEL" ] && SENTINEL_MTIME=$(cat "$SENTINEL" 2>/dev/null || echo "0")
+
+    if [ "$ANIM_MTIME" != "$SENTINEL_MTIME" ]; then
+        echo "Re-encoding bg_animated.mp4 to strip Late SEI warnings..."
+        ffmpeg -i "$PERSISTENT_DIR/bg_animated.mp4"             -c:v libx264 -profile:v high -level 4.1             -pix_fmt yuv420p -movflags +faststart             "$PERSISTENT_DIR/bg_animated_clean.mp4" &&         mv "$PERSISTENT_DIR/bg_animated.mp4" "$PERSISTENT_DIR/bg_animated_backup.mp4" &&         mv "$PERSISTENT_DIR/bg_animated_clean.mp4" "$PERSISTENT_DIR/bg_animated.mp4" &&         echo "$ANIM_MTIME" > "$SENTINEL" &&         echo "Re-encode done" || echo "Re-encode failed (non-fatal)"
+    else
+        echo "bg_animated.mp4 already clean — skipping re-encode"
+    fi
 fi
 
 # ─────────────────────────────────────────────────────────
@@ -343,15 +356,13 @@ python3 scripts/generate_thumbnail.py || echo "Thumbnail skipped"
 
 # ─────────────────────────────────────────────────────────
 # QUALITY GATE — catch broken renders before upload
-# Stops upload if video has no audio, wrong duration, or is too small
 # ─────────────────────────────────────────────────────────
 echo "Running quality gate..."
 python3 scripts/quality_gate.py     --video output/video.mp4     --type "$VIDEO_TYPE"     --expected-minutes "$DURATION_MINUTES"     --sample-seconds 60
-
 GATE_EXIT=$?
 if [ $GATE_EXIT -ne 0 ]; then
-    echo "❌ Quality gate FAILED — aborting upload to prevent bad content going live"
-    notify "❌ Quality gate failed for $VIDEO_TYPE — upload skipped. Check quality_gate_report.json"
+    echo "❌ Quality gate FAILED — aborting upload"
+    notify "❌ Quality gate failed for $VIDEO_TYPE — check /data/quality_gate_report.json"
     exit 1
 fi
 echo "✅ Quality gate passed"
