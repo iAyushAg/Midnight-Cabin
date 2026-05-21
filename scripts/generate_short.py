@@ -160,6 +160,21 @@ def generate_short_content(primary, hook_style, duration_label, theme, mood):
 
         client = _anthropic.Anthropic(api_key=anthropic_key)
 
+        # Load recently used hooks to avoid repeats
+        hooks_log_path = os.path.join(PERSISTENT_DIR, "used_hooks.json")
+        used_hooks = []
+        try:
+            if os.path.exists(hooks_log_path):
+                with open(hooks_log_path) as f:
+                    used_hooks = json.load(f).get(primary, [])[-10:]
+        except Exception:
+            pass
+
+        recent_hooks_str = (
+            "\nAvoid these recently used hook texts (do NOT repeat them):\n" +
+            "\n".join(f"- {h}" for h in used_hooks)
+        ) if used_hooks else ""
+
         prompt = f"""You are writing content for a YouTube Shorts video for @midnightcabins — a sleep and focus ambient sound channel.
 
 This Short is a 60-second preview of a longer ambient video.
@@ -168,7 +183,7 @@ Theme: {theme}
 Primary sound: {primary.replace("_", " ")}
 Mood: {mood}
 Full video duration: {duration_label}
-Hook style: {hook_style}
+Hook style: {hook_style}{recent_hooks_str}
 
 Generate TWO things:
 
@@ -180,6 +195,7 @@ Generate TWO things:
      * Educational style: A short surprising fact or observation ("Rain masks every other sound")
    - Must feel natural when someone reads it in 2 seconds while scrolling
    - Do NOT use: exclamation marks, hashtags, all caps, generic phrases like "perfect sleep sounds"
+   - Be creative — every hook should feel distinct from previous ones
 
 2. VOICEOVER — spoken aloud by a calm female voice, max 30 words
    - Warm, intelligent, slightly poetic — like a thoughtful friend not a salesperson
@@ -220,6 +236,23 @@ Return ONLY valid JSON, no markdown:
 
         print(f"LLM hook: {hook}")
         print(f"LLM voiceover: {vo[:60]}...")
+
+        # Save hook to used log to prevent repeats in future runs
+        try:
+            hooks_log_path = os.path.join(PERSISTENT_DIR, "used_hooks.json")
+            all_hooks = {}
+            if os.path.exists(hooks_log_path):
+                with open(hooks_log_path) as f:
+                    all_hooks = json.load(f)
+            niche_hooks = all_hooks.get(primary, [])
+            if hook not in niche_hooks:
+                niche_hooks.append(hook)
+            all_hooks[primary] = niche_hooks[-20:]  # keep last 20 per niche
+            with open(hooks_log_path, "w") as f:
+                json.dump(all_hooks, f, indent=2)
+        except Exception:
+            pass
+
         return hook, vo
 
     except Exception as e:
@@ -474,12 +507,10 @@ else:
     raise FileNotFoundError("No video source found for Short")
 
 if USE_LOOP:
-    # Loop the animated clip, take audio from main video.
-    # Audio seek is done via -ss on the input flag (before -i SOURCE_VIDEO),
-    # NOT inside filter_complex — ss= is not a valid audio filter.
+    # Loop the 5s animated clip, take audio from main video
     if has_voiceover and os.path.exists(VOICEOVER_PATH):
         filter_complex = (
-            f"[1:a]{ambient_fade},volume=0.5[ambient];"
+            f"[1:a]ss={START_OFFSET},{ambient_fade},volume=0.5[ambient];"
             f"[2:a]volume=1.1,adelay=300|300[vo];"
             f"[ambient][vo]amix=inputs=2:duration=first:weights=1 1[audio]"
         )

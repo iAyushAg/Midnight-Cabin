@@ -60,46 +60,156 @@ hook_style = meta.get("hook_style", "pov")
 # ─────────────────────────────────────────────
 # BUILD SHORT TITLE — varies by hook style
 # ─────────────────────────────────────────────
-POV_TITLES = {
-    "rain":         "Rain sounds for when you can't sleep 🌧️ #Shorts",
-    "fireplace":    "Cozy fireplace vibes at midnight 🔥 #Shorts",
-    "river":        "River sounds to calm your mind 🌊 #Shorts",
-    "ocean_waves":  "Ocean waves sleep sounds 🌊 #Shorts",
-    "soft_wind":    "Soft wind ambience at midnight 🍃 #Shorts",
-    "night_forest": "Forest night sounds for deep sleep 🌲 #Shorts",
-    "brown_noise":  "Brown noise for ADHD focus 🧠 #Shorts",
+# ─────────────────────────────────────────────
+# TITLE POOLS — multiple titles per niche per style
+# Rotated via short_title_rotation.json to prevent repeats
+# ─────────────────────────────────────────────
+TITLE_POOLS = {
+    "pov": {
+        "rain":         [
+            "Rain sounds for when you can't sleep 🌧️ #Shorts",
+            "This is what rain sounds like at 2am 🌧️ #Shorts",
+            "Rain at midnight hits different 🌧️ #Shorts",
+            "POV: The rain finally arrived 🌧️ #Shorts",
+            "When rain is the only sound you need 🌧️ #Shorts",
+        ],
+        "fireplace":    [
+            "Cozy fireplace vibes at midnight 🔥 #Shorts",
+            "POV: Nowhere else to be tonight 🔥 #Shorts",
+            "Fireplace sounds for when you can't sleep 🔥 #Shorts",
+            "This is what a cabin fire sounds like 🔥 #Shorts",
+            "When the fire is the only light on 🔥 #Shorts",
+        ],
+        "river":        [
+            "River sounds to calm your mind 🌊 #Shorts",
+            "POV: You can hear water outside 🌊 #Shorts",
+            "This river sound will slow your thoughts 🌊 #Shorts",
+            "River at midnight — uninterrupted 🌊 #Shorts",
+            "When flowing water is all you need 🌊 #Shorts",
+        ],
+        "ocean_waves":  [
+            "Ocean waves sleep sounds 🌊 #Shorts",
+            "POV: The ocean keeps breathing for you 🌊 #Shorts",
+            "This is what falling asleep by the ocean sounds like 🌊 #Shorts",
+            "Ocean waves at midnight — no music 🌊 #Shorts",
+            "When the tide becomes your heartbeat 🌊 #Shorts",
+        ],
+        "soft_wind":    [
+            "Soft wind ambience at midnight 🍃 #Shorts",
+            "POV: Midnight wind through the trees 🍃 #Shorts",
+            "Wind sounds for when you can't switch off 🍃 #Shorts",
+            "This is what the forest sounds like at 3am 🍃 #Shorts",
+            "When wind is the softest sound in the world 🍃 #Shorts",
+        ],
+        "night_forest": [
+            "Forest night sounds for deep sleep 🌲 #Shorts",
+            "POV: The forest is completely still 🌲 #Shorts",
+            "This is what midnight in a forest sounds like 🌲 #Shorts",
+            "Forest ambience for when sleep won't come 🌲 #Shorts",
+            "When nature sounds quieter than your thoughts 🌲 #Shorts",
+        ],
+        "brown_noise":  [
+            "Brown noise for ADHD focus 🧠 #Shorts",
+            "POV: Your thoughts finally get quieter 🧠 #Shorts",
+            "This sound helps ADHD brains focus 🧠 #Shorts",
+            "Brown noise hits different when you're overwhelmed 🧠 #Shorts",
+            "When your brain needs one steady sound 🧠 #Shorts",
+        ],
+    },
+    "educational": {
+        "rain":         [
+            "Why rain sounds help you sleep faster 🌧️ #Shorts",
+            "What rain actually does to your brain 🌧️ #Shorts",
+            "The science behind rain sounds and sleep 🌧️ #Shorts",
+            "Why your brain loves rain at night 🌧️ #Shorts",
+            "Rain sounds don't just relax you — here's why 🌧️ #Shorts",
+        ],
+        "fireplace":    [
+            "Why fireplace sounds reduce anxiety 🔥 #Shorts",
+            "What crackling fire does to your nervous system 🔥 #Shorts",
+            "The science behind why fire sounds calm you 🔥 #Shorts",
+            "Why your brain finds fire sounds comforting 🔥 #Shorts",
+            "Fireplace sounds and cortisol — the connection 🔥 #Shorts",
+        ],
+        "river":        [
+            "Why river sounds lower stress hormones 🌊 #Shorts",
+            "What flowing water does to your brain at night 🌊 #Shorts",
+            "The science behind river sounds and sleep 🌊 #Shorts",
+            "Why pink noise in rivers helps you fall asleep 🌊 #Shorts",
+            "River sounds activate this part of your brain 🌊 #Shorts",
+        ],
+        "ocean_waves":  [
+            "Why ocean waves match your sleep frequency 🌊 #Shorts",
+            "What the ocean does to your breathing rate 🌊 #Shorts",
+            "The science behind ocean waves and deep sleep 🌊 #Shorts",
+            "Why 12 waves per minute is the magic number 🌊 #Shorts",
+            "Ocean waves and your nervous system — explained 🌊 #Shorts",
+        ],
+        "soft_wind":    [
+            "Why wind sounds improve deep sleep 🍃 #Shorts",
+            "What pink noise in wind does to your memory 🍃 #Shorts",
+            "The science behind wind sounds and rest 🍃 #Shorts",
+            "Why soft wind is better than white noise 🍃 #Shorts",
+            "Wind sounds activate your rest-and-digest system 🍃 #Shorts",
+        ],
+        "night_forest": [
+            "Why nature sounds reset your nervous system 🌲 #Shorts",
+            "What forest sounds do to your threat response 🌲 #Shorts",
+            "The science behind nature sounds and anxiety 🌲 #Shorts",
+            "Why your brain trusts forest sounds at night 🌲 #Shorts",
+            "Forest ambience lowers cortisol — here's how 🌲 #Shorts",
+        ],
+        "brown_noise":  [
+            "Why brown noise helps ADHD brains focus 🧠 #Shorts",
+            "What brown noise does to your prefrontal cortex 🧠 #Shorts",
+            "The science behind brown noise and ADHD 🧠 #Shorts",
+            "Why brown noise works better than white noise 🧠 #Shorts",
+            "Brown noise shifts your brain into focus mode 🧠 #Shorts",
+        ],
+    },
 }
 
-EDUCATIONAL_TITLES = {
-    "rain":         "Why rain sounds help you sleep faster 🌧️ #Shorts",
-    "fireplace":    "Why fireplace sounds reduce anxiety 🔥 #Shorts",
-    "river":        "Why river sounds lower stress hormones 🌊 #Shorts",
-    "ocean_waves":  "Why ocean waves match your sleep frequency 🌊 #Shorts",
-    "soft_wind":    "Why wind sounds improve deep sleep 🍃 #Shorts",
-    "night_forest": "Why nature sounds reset your nervous system 🌲 #Shorts",
-    "brown_noise":  "Why brown noise helps ADHD brains focus 🧠 #Shorts",
-}
+# ─────────────────────────────────────────────
+# TITLE ROTATION — pick unused title, track in persistent file
+# ─────────────────────────────────────────────
+TITLE_ROTATION_FILE = os.path.join(PERSISTENT_DIR, "short_title_rotation.json")
 
-CONTRAST_TITLES = {
-    "rain":         "Your brain before vs after rain sounds 🌧️ #Shorts",
-    "fireplace":    "Silence vs fireplace ambience 🔥 #Shorts",
-    "river":        "Stressed vs calm — river sounds 🌊 #Shorts",
-    "ocean_waves":  "Anxious vs peaceful — ocean waves 🌊 #Shorts",
-    "soft_wind":    "City noise vs midnight wind 🍃 #Shorts",
-    "night_forest": "Insomnia vs forest night sounds 🌲 #Shorts",
-    "brown_noise":  "ADHD without vs with brown noise 🧠 #Shorts",
-}
+def pick_title(primary, hook_style):
+    pool = TITLE_POOLS.get(hook_style, TITLE_POOLS["pov"]).get(
+        primary,
+        [f"{primary.replace('_', ' ').title()} sounds | 60 sec preview #Shorts"]
+    )
 
-title_maps = {
-    "pov": POV_TITLES,
-    "educational": EDUCATIONAL_TITLES,
-    "contrast": CONTRAST_TITLES,
-}
+    used_titles = {}
+    if os.path.exists(TITLE_ROTATION_FILE):
+        try:
+            with open(TITLE_ROTATION_FILE) as f:
+                used_titles = json.load(f)
+        except Exception:
+            pass
 
-title = title_maps.get(hook_style, POV_TITLES).get(
-    primary,
-    f"{theme} | 60 Second Preview #Shorts"
-)
+    key = f"{hook_style}_{primary}"
+    used = set(used_titles.get(key, []))
+    available = [t for t in pool if t not in used]
+
+    if not available:
+        # All used — reset this niche/style combo
+        available = pool
+        used = set()
+
+    title = random.choice(available)
+    used.add(title)
+    used_titles[key] = list(used)
+
+    try:
+        with open(TITLE_ROTATION_FILE, "w") as f:
+            json.dump(used_titles, f, indent=2)
+    except Exception:
+        pass
+
+    return title
+
+title = pick_title(primary, hook_style)
 
 # ─────────────────────────────────────────────
 # BUILD DESCRIPTION
