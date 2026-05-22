@@ -16,6 +16,23 @@ fail() {
     exit 1
 }
 
+# ─────────────────────────────────────────────────────────
+# FFMPEG WRAPPER — suppresses Late SEI spam
+# Filters out the two-line "Late SEI / upload to videolan"
+# warning that floods logs during every animated-bg render.
+# Real errors still surface. Progress lines suppressed too
+# (Railway captures them but they add zero signal).
+# ─────────────────────────────────────────────────────────
+ffmpeg_clean() {
+    ffmpeg "$@" 2>&1 | grep -v \
+        -e "Late SEI is not implemented" \
+        -e "If you want to help, upload a sample" \
+        -e "ffmpeg-devel@ffmpeg.org" \
+        -e "^frame=" \
+        >&2
+    return ${PIPESTATUS[0]}
+}
+
 notify() {
     MESSAGE="$1"
 
@@ -97,11 +114,6 @@ PYEOF
 python3 scripts/collect_stats.py || echo "Stats collection skipped"
 
 # ─────────────────────────────────────────────────────────
-# BUILD LICENSING CATALOG — updates asset register after every run
-# ─────────────────────────────────────────────────────────
-python3 scripts/build_licensing_catalog.py || echo "Licensing catalog skipped (non-fatal)"
-
-# ─────────────────────────────────────────────────────────
 # GENERATE IDEA
 # ─────────────────────────────────────────────────────────
 python3 scripts/generate_idea.py || fail "generate_idea"
@@ -159,7 +171,14 @@ if [ -f "$PERSISTENT_DIR/bg_animated.mp4" ]; then
 
     if [ "$ANIM_MTIME" != "$SENTINEL_MTIME" ]; then
         echo "Re-encoding bg_animated.mp4 to strip Late SEI warnings..."
-        ffmpeg -i "$PERSISTENT_DIR/bg_animated.mp4"             -c:v libx264 -profile:v high -level 4.1             -pix_fmt yuv420p -movflags +faststart             "$PERSISTENT_DIR/bg_animated_clean.mp4" &&         mv "$PERSISTENT_DIR/bg_animated.mp4" "$PERSISTENT_DIR/bg_animated_backup.mp4" &&         mv "$PERSISTENT_DIR/bg_animated_clean.mp4" "$PERSISTENT_DIR/bg_animated.mp4" &&         echo "$ANIM_MTIME" > "$SENTINEL" &&         echo "Re-encode done" || echo "Re-encode failed (non-fatal)"
+        ffmpeg_clean -i "$PERSISTENT_DIR/bg_animated.mp4" \
+            -c:v libx264 -profile:v high -level 4.1 \
+            -pix_fmt yuv420p -movflags +faststart \
+            "$PERSISTENT_DIR/bg_animated_clean.mp4" && \
+        mv "$PERSISTENT_DIR/bg_animated.mp4" "$PERSISTENT_DIR/bg_animated_backup.mp4" && \
+        mv "$PERSISTENT_DIR/bg_animated_clean.mp4" "$PERSISTENT_DIR/bg_animated.mp4" && \
+        echo "$ANIM_MTIME" > "$SENTINEL" && \
+        echo "Re-encode done" || echo "Re-encode failed (non-fatal)"
     else
         echo "bg_animated.mp4 already clean — skipping re-encode"
     fi
@@ -194,14 +213,14 @@ ANIMATED_VIDEO="video/bg_animated.mp4"
 if [ -f "$ANIMATED_VIDEO" ]; then
     echo "Using animated video..."
 
-    ffmpeg -y \
+    ffmpeg_clean -y \
         -stream_loop -1 -i "$ANIMATED_VIDEO" \
         -stream_loop -1 -i audio/brown_noise.wav \
         -t "$DURATION_SECONDS" \
         -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
         -af "equalizer=f=8000:width_type=o:width=2:g=-6,equalizer=f=100:width_type=o:width=2:g=2" \
-        -c:v libx264 -preset ultrafast -crf 26 \
-        -c:a aac -b:a 192k -ar 44100 -r 24 \
+        -c:v libx264 -preset faster -crf 32 \
+        -c:a aac -b:a 128k -ar 44100 -r 24 \
         -movflags +faststart \
         output/video.mp4 || fail "ffmpeg render"
 
@@ -243,7 +262,7 @@ PYEOF
     if [ "$IS_DARK_SCREEN" = "1" ]; then
         echo "Dark-screen style render: minimal motion, low brightness..."
 
-        ffmpeg -y \
+        ffmpeg_clean -y \
             -loop 1 -i video/bg.jpg \
             -stream_loop -1 -i audio/brown_noise.wav \
             -t "$DURATION_SECONDS" \
@@ -254,15 +273,15 @@ zoompan=z='min(zoom+0.000015,1.035)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d
 format=yuv420p[v]" \
             -map "[v]" -map 1:a \
             -af "equalizer=f=8000:width_type=o:width=2:g=-6,equalizer=f=100:width_type=o:width=2:g=2" \
-            -c:v libx264 -preset ultrafast -crf 26 \
-            -c:a aac -b:a 192k -ar 44100 -r 24 \
+            -c:v libx264 -preset faster -crf 32 \
+            -c:a aac -b:a 128k -ar 44100 -r 24 \
             -movflags +faststart \
             output/video.mp4 || fail "ffmpeg render"
 
     else
         echo "Normal ambience render: slow zoom/pan + rain/fog/light texture..."
 
-        ffmpeg -y \
+        ffmpeg_clean -y \
             -loop 1 -i video/bg.jpg \
             -stream_loop -1 -i audio/brown_noise.wav \
             -f lavfi -i "color=c=white@0.0:s=1920x1080:r=24" \
@@ -280,8 +299,8 @@ drawbox=x=0:y=0:w=iw:h=ih:color=white@0.018*between(mod(t\,17)\,0\,0.18):t=fill,
 format=yuv420p[v]" \
             -map "[v]" -map 1:a \
             -af "equalizer=f=8000:width_type=o:width=2:g=-6,equalizer=f=100:width_type=o:width=2:g=2" \
-            -c:v libx264 -preset ultrafast -crf 26 \
-            -c:a aac -b:a 192k -ar 44100 -r 24 \
+            -c:v libx264 -preset faster -crf 32 \
+            -c:a aac -b:a 128k -ar 44100 -r 24 \
             -movflags +faststart \
             output/video.mp4 || fail "ffmpeg render"
     fi
