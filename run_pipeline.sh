@@ -97,6 +97,11 @@ PYEOF
 python3 scripts/collect_stats.py || echo "Stats collection skipped"
 
 # ─────────────────────────────────────────────────────────
+# BUILD LICENSING CATALOG — updates asset register after every run
+# ─────────────────────────────────────────────────────────
+python3 scripts/build_licensing_catalog.py || echo "Licensing catalog skipped (non-fatal)"
+
+# ─────────────────────────────────────────────────────────
 # GENERATE IDEA
 # ─────────────────────────────────────────────────────────
 python3 scripts/generate_idea.py || fail "generate_idea"

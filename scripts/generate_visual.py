@@ -193,69 +193,73 @@ def pick_library_image(primary):
     return chosen
 
 def download_pollinations_fallback(primary, output_path):
-    """Generate image from Pollinations.ai as fallback."""
-    PROMPTS = {
-        "rain": (
-            "cozy attic bedroom rustic wooden cabin at night, "
-            "large arched window filled with heavy rainfall dark stormy sky outside, "
-            "raindrops on glass, stone fireplace bright orange flames bottom right, "
-            "warm amber lanterns wooden beams, plush bed rumpled blankets, "
-            "bookshelves, steaming mug, deep blue and amber palette, "
-            "cinematic digital painting, photorealistic, ultra detailed, no people, no text"
-        ),
-        "fireplace": (
-            "grand stone fireplace roaring orange fire bottom right, "
-            "mountain lodge interior night, frost window showing snow, "
-            "leather armchair, exposed log walls, warm amber glow, "
-            "cinematic digital painting, photorealistic, ultra detailed, no people, no text"
-        ),
-        "river": (
-            "wooden cabin porch moonlit mountain river at night, "
-            "river flowing over rocks bottom half, mist rising, "
-            "warm lantern light through window, pine forest both sides, "
-            "cool blue and warm amber, cinematic digital painting, no people, no text"
-        ),
-        "ocean_waves": (
-            "cliffside cottage bedroom stormy ocean at night, "
-            "large window showing waves crashing on rocks, "
-            "fireplace small fire bottom right, candle on windowsill, "
-            "deep navy candlelight, cinematic digital painting, no people, no text"
-        ),
-        "soft_wind": (
-            "japanese cabin bamboo forest twilight, "
-            "shoji windows showing swaying bamboo, paper lanterns glowing, "
-            "small fireplace embers bottom right, cherry blossom petals, "
-            "pale lavender deep green gold, cinematic digital painting, no people, no text"
-        ),
-        "night_forest": (
-            "glass treehouse deep forest midnight, "
-            "moonlight through glass walls, fireplace glowing bottom right, "
-            "fairy lights wooden beams, bioluminescent mushrooms, "
-            "forest green midnight blue gold, cinematic digital painting, no people, no text"
-        ),
-        "brown_noise": (
-            "modern loft study night, floor to ceiling windows rain on city glass, "
-            "warm desk lamp open notebook coffee, "
-            "small fireplace bottom right candle, exposed brick dark wood, "
-            "warm amber charcoal navy, cinematic digital painting, no people, no text"
-        ),
-        "thunder": (
-            "cozy cabin living room violent thunderstorm, "
-            "windows showing lightning storm dark sky rain, "
-            "roaring fireplace bright flames bottom right, "
-            "thick blankets armchair, deep blue amber dramatic, "
-            "cinematic digital painting, no people, no text"
-        ),
+    """
+    Fetch a high-quality real photograph from Unsplash as image fallback.
+
+    Unsplash is free, no API key needed for the source URL pattern, and
+    produces dramatically better thumbnails than AI-generated Pollinations images.
+    Real photography = higher perceived production value = better CTR.
+
+    Falls back to Pollinations only if Unsplash fails.
+    """
+
+    # Curated Unsplash search queries per niche
+    # These return the highest-quality editorial photography for each theme
+    UNSPLASH_QUERIES = {
+        "rain":         ["rainy cabin window cozy", "rain window night dark", "cozy cabin rain"],
+        "fireplace":    ["fireplace cozy cabin night", "crackling fireplace warm", "cabin fireplace winter"],
+        "river":        ["mountain river night forest", "river cabin moonlight", "forest stream night"],
+        "ocean_waves":  ["ocean waves night cabin", "stormy ocean cliffs", "dark ocean waves"],
+        "soft_wind":    ["forest wind night peaceful", "dark forest moonlight", "misty forest night"],
+        "night_forest": ["dark forest night moonlight", "forest night fireflies", "pine forest midnight"],
+        "brown_noise":  ["dark rainy window study", "cozy study night rain", "dark desk lamp night"],
+        "thunder":      ["thunderstorm night cabin", "lightning storm dark sky", "storm rain window night"],
     }
-    prompt = PROMPTS.get(primary, f"cozy cabin {primary} night cinematic, no people, no text")
-    prompt += ", masterpiece, best quality, 8k uhd, cinematic lighting"
+
+    queries = UNSPLASH_QUERIES.get(primary, ["cozy cabin night dark"])
+    query = random.choice(queries)
+
+    # Unsplash source API — free, no key, returns a random relevant photo
+    # orientation=landscape ensures 16:9 compatible image
+    encoded_query = quote(query)
+    unsplash_url = f"https://source.unsplash.com/1280x720/?{encoded_query}"
+
+    try:
+        print(f"Fetching Unsplash photo for '{query}'...")
+        resp = requests.get(unsplash_url, timeout=60, stream=True, allow_redirects=True)
+        resp.raise_for_status()
+        with open(output_path, "wb") as f:
+            for chunk in resp.iter_content(8192):
+                f.write(chunk)
+        size = os.path.getsize(output_path)
+        if size > 50000:
+            print(f"Unsplash photo saved: {size//1024}KB")
+            return True
+        else:
+            print(f"Unsplash returned tiny file ({size}B) — falling back to Pollinations")
+    except Exception as e:
+        print(f"Unsplash failed: {e} — falling back to Pollinations")
+
+    # Pollinations fallback (kept as last resort)
+    PROMPTS = {
+        "rain":         "cozy cabin bedroom night, rain on window, warm amber fireplace glow, cinematic, no people, no text, photorealistic",
+        "fireplace":    "stone fireplace roaring fire, mountain lodge night, warm amber, cinematic, no people, no text, photorealistic",
+        "river":        "mountain river night, moonlight on water, pine forest, misty, cinematic, no people, no text, photorealistic",
+        "ocean_waves":  "cliffside cabin stormy ocean night, waves crashing, dark navy, cinematic, no people, no text, photorealistic",
+        "soft_wind":    "forest night moonlight, gentle wind, peaceful, dark green, cinematic, no people, no text, photorealistic",
+        "night_forest": "dark forest midnight, moonlight through trees, fireflies, cinematic, no people, no text, photorealistic",
+        "brown_noise":  "dark study desk night, rain window, warm lamp, cinematic, no people, no text, photorealistic",
+        "thunder":      "thunderstorm cabin night, lightning dark sky, cozy interior, cinematic, no people, no text, photorealistic",
+    }
+    prompt = PROMPTS.get(primary, f"dark cozy cabin {primary} night, cinematic, no people, no text")
+    prompt += ", masterpiece, 8k, cinematic lighting"
 
     try:
         encoded = quote(prompt)
-        seed = int(time.time()) % 999999  # time-based: unique image every run
+        seed = int(time.time()) % 999999
         url = (f"https://image.pollinations.ai/prompt/{encoded}"
                f"?width=1280&height=720&seed={seed}&model=flux&nologo=true&enhance=true")
-        print("Calling Pollinations.ai fallback...")
+        print("Calling Pollinations.ai as last resort...")
         resp = requests.get(url, timeout=120, stream=True)
         resp.raise_for_status()
         with open(output_path, "wb") as f:
