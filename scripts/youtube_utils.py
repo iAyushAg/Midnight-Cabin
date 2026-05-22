@@ -309,26 +309,90 @@ def add_video_to_playlists(youtube, video_id, playlist_ids):
     return added
 
 def pin_comment(youtube, video_id, primary, duration_label, sound_layers, idea=None, video_type="main"):
-    """Post and pin a comment on the video with a human-curation signal."""
+    """Post a community-building pinned comment that creates cabin lore and drives engagement."""
 
     idea = idea or {}
-    is_flagship = idea.get("is_flagship") or idea.get("content_tier") == "flagship"
-    note = get_production_note(video_type, is_flagship).replace("\n", " ")
 
-    # Build comment based on theme.
-    if "rain" in sound_layers:
-        comment = f"🌧️ The rain builds gradually over the first 10 minutes — let it wash everything away. {duration_label} of pure sleep sound, no mid-roll interruptions and no sudden sounds. Sleep well 🌙\n\n{note}"
-    elif "fireplace" in sound_layers:
-        comment = f"🔥 The fire crackles gently throughout — imagine you're in a cozy cabin far from everything. {duration_label} of warmth, no sudden sounds. Sleep well 🌙\n\n{note}"
-    elif primary == "brown_noise" or "brown_noise" in sound_layers:
-        comment = f"🧠 Brown noise works best at low-medium volume — let it fill the room, not overwhelm it. {duration_label} of pure focus/sleep sound. No sudden sounds 🌙\n\n{note}"
-    elif "river" in sound_layers:
-        comment = f"🌊 The river flows steadily throughout — consistent, calming, uninterrupted. {duration_label} of nature sound. No sudden sounds 🌙\n\n{note}"
-    else:
-        comment = f"🌙 Let this play quietly in the background — {duration_label} of uninterrupted ambient sound. No mid-roll interruptions, no sudden sounds. Sleep well ✨\n\n{note}"
+    # Welcome to the cabin — builds identity, drives comments, creates community
+    CABIN_COMMENTS = {
+        "rain": (
+            "Welcome to the cabin. 🌧️\n\n"
+            "The rain started about an hour ago and hasn't let up. "
+            "Door's locked, fire's optional, phone's face-down.\n\n"
+            f"{duration_label} of it. No interruptions. No sudden sounds.\n\n"
+            "Drop a 🕯️ if you're here late tonight."
+        ),
+        "fireplace": (
+            "Welcome to the cabin. 🔥\n\n"
+            "Fire's been going since dusk. "
+            "There's nowhere you need to be and nothing that can't wait until morning.\n\n"
+            f"{duration_label} of warmth. No interruptions. No sudden sounds.\n\n"
+            "Drop a 🕯️ if you're here late tonight."
+        ),
+        "brown_noise": (
+            "Welcome to the cabin. 🧠\n\n"
+            "Brown noise is playing. "
+            "If you're here because your brain won't stop — you're in the right place. "
+            "Best at low-to-medium volume, filling the room, not filling your ears.\n\n"
+            f"{duration_label}. No interruptions.\n\n"
+            "Drop a 🕯️ if you're studying or it's past midnight."
+        ),
+        "river": (
+            "Welcome to the cabin. 🌊\n\n"
+            "There's a river about 40 feet from the door. "
+            "You can hear it from the bedroom. It's been sounding like this for a thousand years.\n\n"
+            f"{duration_label}. No interruptions. No sudden sounds.\n\n"
+            "Drop a 🕯️ if you're here late tonight."
+        ),
+        "ocean_waves": (
+            "Welcome to the cabin. 🌊\n\n"
+            "The cabin is close enough to the water that you can hear it from bed. "
+            "Waves arrive, fade, return. They've been doing this since before sleep was a thing people worried about.\n\n"
+            f"{duration_label}. No interruptions.\n\n"
+            "Drop a 🕯️ if you're here late tonight."
+        ),
+        "thunder": (
+            "Welcome to the cabin. ⛈️\n\n"
+            "Storm rolled in around midnight. "
+            "Big one. The kind where you're genuinely relieved to be inside.\n\n"
+            f"{duration_label}. No interruptions. No sudden sounds.\n\n"
+            "Drop a 🕯️ if you're here late tonight."
+        ),
+        "soft_wind": (
+            "Welcome to the cabin. 🍃\n\n"
+            "Quiet night. Just wind moving through the trees. "
+            "Nothing is waiting, nothing is urgent, nothing needs you until morning.\n\n"
+            f"{duration_label}. No interruptions. No sudden sounds.\n\n"
+            "Drop a 🕯️ if you're here late tonight."
+        ),
+        "night_forest": (
+            "Welcome to the cabin. 🌲\n\n"
+            "Deep in the forest tonight. "
+            "Crickets, wind in the canopy, occasional distant things that are absolutely fine. "
+            "Your nervous system knows the difference between forest sounds and danger.\n\n"
+            f"{duration_label}. No interruptions.\n\n"
+            "Drop a 🕯️ if you're here late tonight."
+        ),
+    }
+
+    # Pick the most relevant comment based on primary sound
+    comment = CABIN_COMMENTS.get(primary)
+    if not comment:
+        # Fallback for any unlisted primary
+        for layer in sound_layers:
+            if layer in CABIN_COMMENTS:
+                comment = CABIN_COMMENTS[layer]
+                break
+
+    if not comment:
+        comment = (
+            "Welcome to the cabin. 🌙\n\n"
+            "Whatever brought you here tonight — you're in the right place. "
+            f"{duration_label} of uninterrupted ambient sound. No sudden sounds. No mid-roll interruptions.\n\n"
+            "Drop a 🕯️ if you're here late tonight."
+        )
 
     try:
-        # Post comment
         response = youtube.commentThreads().insert(
             part="snippet",
             body={
@@ -344,9 +408,9 @@ def pin_comment(youtube, video_id, primary, duration_label, sound_layers, idea=N
         ).execute()
 
         comment_id = response["id"]
-        print(f"Comment posted: {comment_id}")
-        print(f"⚠️  Pin this comment manually in YouTube Studio — API pinning is not supported")
-        print(f"   Go to: https://studio.youtube.com/video/{video_id}/comments")
+        print(f"Cabin welcome comment posted: {comment_id}")
+        print(f"⚠️  Pin this comment manually in YouTube Studio:")
+        print(f"   https://studio.youtube.com/video/{video_id}/comments")
         print(f"   Click ⋮ on your comment → Pin comment")
         return comment_id
 

@@ -98,23 +98,23 @@ SOFT_CTAS = [
 
 # Fallback hooks if LLM fails
 POV_HOOKS_FALLBACK = {
-    "rain":         "POV: The rain finally arrived",
-    "fireplace":    "POV: Nowhere else to be tonight",
-    "river":        "POV: You hear water outside",
-    "ocean_waves":  "POV: The ocean keeps breathing",
-    "soft_wind":    "POV: Midnight wind through trees",
-    "night_forest": "POV: The forest is completely still",
-    "brown_noise":  "POV: Your thoughts get quieter",
+    "rain":         "POV: your brain finally stopped",
+    "fireplace":    "POV: you have nowhere to be tonight",
+    "river":        "POV: the overthinking just stopped",
+    "ocean_waves":  "POV: the ocean is breathing for you",
+    "soft_wind":    "POV: nothing needs you right now",
+    "night_forest": "POV: the whole world got quiet",
+    "brown_noise":  "POV: you can finally think clearly",
 }
 
 EDUCATIONAL_HOOKS_FALLBACK = {
-    "rain":         "Rain masks every other sound",
-    "fireplace":    "Fire fills silence without music",
-    "river":        "Flowing water quiets a busy mind",
-    "ocean_waves":  "Waves arrive at their own pace",
-    "soft_wind":    "Wind without sudden sharp edges",
-    "night_forest": "Nature sound with no surprises",
-    "brown_noise":  "Brown noise lowers the contrast",
+    "rain":         "Why your brain loves this sound",
+    "fireplace":    "Why a fire feels like someone is home",
+    "river":        "Why rivers quiet a loud brain",
+    "ocean_waves":  "Why waves are your oldest sleep cue",
+    "soft_wind":    "Why wind sounds feel like safety",
+    "night_forest": "Why nature sounds lower your threat response",
+    "brown_noise":  "Why this frequency quiets anxious brains",
 }
 
 FALLBACK_HOOKS = {
@@ -123,23 +123,23 @@ FALLBACK_HOOKS = {
 }
 
 POV_VOICEOVERS_FALLBACK = {
-    "rain": f"Steady rain gives your mind one thing to follow. Nothing sharp, nothing sudden, just sound moving at its own pace. Save this for tonight.",
-    "fireplace": f"A crackling fire fills the room without asking for attention. Just warmth and a quiet kind of company. Let the full version play later.",
-    "river": f"A river never rushes you. It keeps moving and gives your mind a soft pattern to rest against. Full version on Midnight Cabin.",
-    "ocean_waves": f"The ocean arrives, fades, and returns. No hurry, no sharp edges. Let one wave replace one thought. Save this for tonight.",
-    "soft_wind": f"Soft wind is the sound of nothing needing you right now. Just a quiet room and steady air outside. Full version on Midnight Cabin.",
-    "night_forest": f"The forest is not silent but nothing is demanding your attention. That is what makes it feel restful. Save this for tonight.",
-    "brown_noise": f"Brown noise raises the noise floor so sudden sounds blend in. Your brain stops scanning and starts settling. Full version on Midnight Cabin.",
+    "rain": f"You know that feeling when the rain starts and your whole body just... exhales? That's what this is. {duration_label} of it, no interruptions. Save this for tonight.",
+    "fireplace": f"There's something about a fire that makes your brain think someone is home, you're safe, nothing is waiting. That's the whole point. Save this for 10pm.",
+    "river": f"A river doesn't ask anything of you. It just keeps moving, and somewhere in that rhythm your brain finds something to follow that isn't your own thoughts. Save this for tonight.",
+    "ocean_waves": f"The ocean has been doing this since before you were born. Arrive, fade, return. Your brain recognises it before you do. Save this for when you can't sleep.",
+    "soft_wind": f"Wind is the sound of nothing needing you right now. Just a quiet room, and air moving the way it always has. Save this for tonight.",
+    "night_forest": f"The forest is never completely silent. But nothing in it is demanding your attention either. Your nervous system knows the difference. Save this for tonight.",
+    "brown_noise": f"Your brain is always scanning for threats. Brown noise gives it something consistent to latch onto so it stops. That's why it works. Save this for when your thoughts are too loud.",
 }
 
 EDUCATIONAL_VOICEOVERS_FALLBACK = {
-    "rain": f"Your auditory system keeps scanning for threats even while you sleep. Steady rain raises the noise floor so sudden sounds blend in. Full version on Midnight Cabin.",
-    "fireplace": f"Irregular crackling keeps your auditory cortex just engaged enough to quiet intrusive thoughts. Not enough to keep you awake. Save this for tonight.",
-    "river": f"Pink noise in flowing water matches the brain's own resting rhythms. Your mind recognises it and slows down. Full version on Midnight Cabin.",
-    "ocean_waves": f"Ocean waves oscillate at around twelve cycles per minute — close to the breathing rate of someone in deep sleep. Save this for tonight.",
-    "soft_wind": f"Pink noise in wind sounds is linked to better memory consolidation during sleep. Your brain does not just rest — it recovers. Full version on Midnight Cabin.",
-    "night_forest": f"Nature sounds reduce activity in the brain's threat detection centre. Your body stops bracing and starts resting. Save this for tonight.",
-    "brown_noise": f"Brown noise shifts activity toward the prefrontal cortex — the part of the brain that struggles most with focus and impulse control. Full version on Midnight Cabin.",
+    "rain": f"Your auditory cortex keeps scanning for changes even while you sleep. Steady rain masks those changes so your brain stops looking. That's why it works. Save this for tonight.",
+    "fireplace": f"Irregular crackling keeps your auditory system just engaged enough to suppress intrusive thoughts — but not enough to keep you awake. Save this for 10pm.",
+    "river": f"Pink noise in flowing water closely matches the brain's own resting neural rhythms. Your mind recognises it and slows to match. Save this for when you can't sleep.",
+    "ocean_waves": f"Ocean waves arrive at roughly 12 cycles per minute — almost exactly the breathing rate of someone in deep sleep. Your body takes the cue. Save this for tonight.",
+    "soft_wind": f"Pink noise in wind sounds is linked to better memory consolidation. Your brain doesn't just rest — it recovers. Save this for tonight.",
+    "night_forest": f"Nature sounds reduce activity in the amygdala — the brain's threat detection centre. Your body stops bracing. That's what rest actually feels like. Save this for tonight.",
+    "brown_noise": f"Brown noise shifts neural activity toward the prefrontal cortex — which is exactly the part that struggles most with focus and with rumination. Save this for when your brain won't stop.",
 }
 
 FALLBACK_VOICEOVERS = {
@@ -177,7 +177,10 @@ def generate_short_content(primary, hook_style, duration_label, theme, mood):
 
         prompt = f"""You are writing content for a YouTube Shorts video for @midnightcabins — a sleep and focus ambient sound channel.
 
-This Short is a 60-second preview of a longer ambient video.
+The channel's breakthrough insight: "Why your brain loves rain at night" gets 3-10x more views
+than "Rain sounds for sleep." The difference is psychological — emotional recognition beats utility labels.
+
+This Short's job: make someone stop scrolling, feel personally understood, and save it for later.
 
 Theme: {theme}
 Primary sound: {primary.replace("_", " ")}
@@ -187,27 +190,27 @@ Hook style: {hook_style}{recent_hooks_str}
 
 Generate TWO things:
 
-1. HOOK_TEXT — shown as large text on screen
+1. HOOK_TEXT — shown as large text on screen for 2 seconds while scrolling
    - Max 5 words, no punctuation except apostrophes
    - No emojis (they break video rendering)
+   - Must create EMOTIONAL RECOGNITION — the viewer should think "that's me"
    - Style guide:
-     * POV style: Start with "POV:" then a short scene ("POV: The cabin is finally quiet")
-     * Educational style: A short surprising fact or observation ("Rain masks every other sound")
-   - Must feel natural when someone reads it in 2 seconds while scrolling
-   - Do NOT use: exclamation marks, hashtags, all caps, generic phrases like "perfect sleep sounds"
-   - Be creative — every hook should feel distinct from previous ones
+     * POV style: Start with "POV:" then a specific emotional state, NOT a scene description
+       GOOD: "POV: your brain finally stopped" / "POV: nothing needs you right now"
+       BAD: "POV: The cabin is quiet" / "POV: Rain is falling" (scenes, not feelings)
+     * Educational style: A "why your brain" insight that makes people curious about themselves
+       GOOD: "Why your brain loves this sound" / "Why this quiets anxious minds"
+       BAD: "Rain masks every other sound" (too clinical, no personal pull)
+   - Do NOT use: exclamation marks, hashtags, all caps, generic phrases
 
-2. VOICEOVER — spoken aloud by a calm female voice, max 30 words
-   - Warm, intelligent, slightly poetic — like a thoughtful friend not a salesperson
-   - Must feel complete in one breath
-   - End with exactly one of these CTAs (pick the most natural fit):
-     * "Full version on Midnight Cabin."
-     * "Save this for tonight."
-     * "Let the full version play later."
-   - Do NOT mention: subscribe, like, comment, algorithm, YouTube
-   - Do NOT start with "I" or "You"
-   - POV style: immersive and sensory — describe what the listener feels or hears
-   - Educational style: one specific insight about why this sound helps sleep or focus
+2. VOICEOVER — spoken aloud by a calm voice, max 35 words
+   - Warm, specific, slightly poetic — like a thoughtful friend at midnight, not a wellness brand
+   - Must end with: "Save this for tonight." (this is the save trigger — always use this exact phrase)
+   - Do NOT mention: subscribe, like, comment, algorithm, YouTube, "Full version"
+   - Do NOT start with "I"
+   - POV style: Make the listener feel understood in their specific emotional state
+   - Educational style: One genuine brain-science insight that makes the person think "oh, that's why"
+   - The voiceover should feel like it was written specifically about the person listening
 
 Return ONLY valid JSON, no markdown:
 {{"hook_text": "...", "voiceover": "..."}}"""

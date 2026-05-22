@@ -213,9 +213,12 @@ def repair_and_validate_idea(idea, fallback_context):
 
     # Normalize title
     title = str(idea.get("title", "")).strip()
-    if not title or "|" not in title or duration_label not in title or len(title) > 90:
+    # Accept emotional titles that don't use pipe separators — they're intentional.
+    # Only reject if: empty, too long, or missing the duration label entirely.
+    if not title or len(title) > 95 or duration_label not in title:
         utility = "Deep Sleep" if suggested_primary != "brown_noise" else "Focus Sound"
-        title = f"{scene_hint} | {suggested_primary.replace('_', ' ').title()} {utility} | {duration_label}"
+        sound_name = suggested_primary.replace("_", " ")
+        title = f"Why your brain loves {sound_name} at night | {duration_label}"
 
     idea["title"] = title[:90].rstrip(" |-")
 
@@ -477,25 +480,46 @@ If FLAGSHIP, make it feel like a weekly hero asset: more cinematic, more specifi
 If STANDARD, keep it high quality but simpler and repeatable.
 
 CRITICAL — This channel has under 100 subscribers. YouTube will NOT recommend it.
-The ONLY way people will find these videos is by searching. Every title must mirror
-exactly what someone types into YouTube at 2am when they cannot sleep.
+The ONLY path to views is: (1) search traffic from emotionally specific queries, and
+(2) Shorts virality from titles that feel personally written about the viewer.
 
-TITLE RULES (most important part):
-- Start with the SOUND TYPE, not a scene or mood
-- Formula: "[Sound] for [Specific Problem] | [Duration] | [Differentiator]"
-- GOOD: "Rain Sounds for Sleeping | {duration_label} | No Music No Talking"
-- GOOD: "Brown Noise for ADHD Focus | {duration_label} | No Interruptions"
-- GOOD: "Fireplace Crackling for Sleep | {duration_label} | Cozy Cabin Sounds"
-- GOOD: "Ocean Waves for Deep Sleep | {duration_label} | No Music"
-- BAD: "Rain on a Mountain Cabin Roof | Deep Sleep | 10 Hours"
-- BAD: "Gentle Rain and River Sounds for Deep Sleep & Relaxation"
-- BAD: "Midnight Cabin Ambience | 10 Hours"
+TITLE RULES (the most important part — read carefully):
+The channel's top-performing video is "Why your brain loves rain at night" — this
+outsperforms all other videos by 3-10x. Study this pattern. Every title must feel like
+it was written about the viewer specifically, not about the sound.
+
+PSYCHOLOGICAL TITLE FORMULA — choose ONE of these three patterns:
+  Pattern A — "Why your brain [does X] when [sound] plays | {duration_label}"
+  Pattern B — "For people who [specific relatable situation] | {duration_label} | [sound]"
+  Pattern C — "The [sound] that [emotional outcome] | {duration_label} | No music"
+
+GOOD title examples (these patterns):
+- "Why your brain finally quiets down when rain plays | {duration_label}"
+- "Why brown noise feels like someone turned off the anxiety | {duration_label}"
+- "For people who can't sleep without something playing | {duration_label} | Rain"
+- "For people whose brain won't stop replaying conversations at 3am | {duration_label}"
+- "The rain sound that makes your body think it's safe | {duration_label}"
+- "The fireplace sound that feels like someone is home | {duration_label}"
+- "Why ocean waves are the oldest sleep signal your brain knows | {duration_label}"
+- "What happens to your brain when a river plays all night | {duration_label}"
+
+BAD titles (commodity — never use these patterns):
+- "Rain Sounds for Sleeping | 8 Hours | No Music No Talking"  ← generic utility label
+- "Brown Noise for ADHD Focus | 8 Hours | No Interruptions"  ← sounds like every competitor
+- "Fireplace Crackling for Sleep | 8 Hours"  ← zero emotional pull
+- "Midnight Cabin Ambience | 10 Hours"  ← branding over emotion
+
+Rules:
 - Under 90 characters. Include "{duration_label}" exactly.
+- Must contain the sound name (rain/fireplace/brown noise/ocean/river/wind/forest)
+- Must feel like it was written about a specific person at a specific emotional moment
 - Do NOT repeat any recent title.
+- If flagship: go deeper — more specific emotional situation, more curiosity pull
 
-THUMBNAIL TEXT: 2 words max, the sound name in caps.
-- GOOD: "RAIN SOUNDS", "BROWN NOISE", "OCEAN WAVES", "FIREPLACE", "RIVER SOUNDS"
-- BAD: "RAINY CABIN", "MIDNIGHT CABIN", "DEEP SLEEP"
+THUMBNAIL TEXT: A 2-4 word EMOTIONAL PHRASE (not just the sound name).
+- GOOD: "BRAIN FINALLY QUIET", "3AM THOUGHTS", "FEELS LIKE SAFE", "ANXIETY OFF"
+- ALSO GOOD: "RAIN SOUNDS", "BROWN NOISE" (these still work as fallback)
+- BAD: "MIDNIGHT CABIN", "DEEP SLEEP", "8 HOURS"
 
 Other rules:
 - Use 2-3 sound layers total
@@ -559,14 +583,14 @@ if not idea:
         layer_list.append("brown_noise")
     title_sound = suggested_primary.replace("_", " ").title()
     _fallback_titles = {
-        "rain":         f"Rain Sounds for Sleeping | {duration_label} | No Music No Talking",
-        "river":        f"River Sounds for Sleep | {duration_label} | Relaxing Water Sounds",
-        "fireplace":    f"Fireplace Crackling for Sleep | {duration_label} | Cozy Cabin Sounds",
-        "ocean_waves":  f"Ocean Waves for Deep Sleep | {duration_label} | No Music",
-        "soft_wind":    f"Soft Wind Sounds for Sleep | {duration_label} | Gentle Night Ambience",
-        "night_forest": f"Forest Night Sounds for Sleep | {duration_label} | Crickets and Wind",
-        "brown_noise":  f"Brown Noise for ADHD Focus | {duration_label} | No Interruptions",
-        "thunder":      f"Thunderstorm for Sleep | {duration_label} | Heavy Rain Sounds",
+        "rain":         f"Why your brain loves rain playing all night | {duration_label}",
+        "river":        f"Why a river playing all night quiets a loud brain | {duration_label}",
+        "fireplace":    f"Why a crackling fire feels like someone is home | {duration_label}",
+        "ocean_waves":  f"Why ocean waves are the oldest sleep signal your brain knows | {duration_label}",
+        "soft_wind":    f"For people who need something playing to fall asleep | {duration_label} | Wind",
+        "night_forest": f"Why forest sounds at night feel like nothing needs you | {duration_label}",
+        "brown_noise":  f"Why your brain stops scanning when brown noise plays | {duration_label}",
+        "thunder":      f"Why thunderstorms feel like permission to stop doing things | {duration_label}",
     }
     _fallback_thumbs = {
         "rain": "RAIN SOUNDS", "river": "RIVER SOUNDS", "fireplace": "FIREPLACE",
@@ -642,9 +666,15 @@ if recent_layer_combos.get(combo, 0) > 0:
 # Final title uniqueness guard
 title = str(idea.get("title", "")).strip()
 if normalize_title(title) in recent_titles:
-    utility = "Deep Sleep" if suggested_primary != "brown_noise" else "Focus Sound"
-    title = f"{pick_unused_scene(recent_scenes)} | {utility} | {duration_label}"
-    idea["title"] = title[:90].rstrip(" |-")
+    sound_name = suggested_primary.replace("_", " ")
+    emotional_fallbacks = [
+        f"Why your brain finally rests when {sound_name} plays | {duration_label}",
+        f"For people whose brain won't stop at night | {duration_label} | {sound_name.title()}",
+        f"What {sound_name} does to a busy brain after midnight | {duration_label}",
+    ]
+    import hashlib as _hs
+    idx = int(_hs.md5(title.encode()).hexdigest(), 16) % len(emotional_fallbacks)
+    idea["title"] = emotional_fallbacks[idx][:90].rstrip(" |-")
 
 os.makedirs(PERSISTENT_DIR, exist_ok=True)
 
