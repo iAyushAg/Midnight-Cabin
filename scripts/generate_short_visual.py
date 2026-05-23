@@ -471,11 +471,135 @@ NEGATIVE_PROMPT = (
 
 animation_success = False
 
+# ─────────────────────────────────────────────
+# AUTO-PROMPT VIA CLAUDE VISION
+#
+# Look at the actual image and generate a Kling prompt tailored
+# to exactly what's in it. This handles all 91+ library images
+# automatically and works for new images added later.
+#
+# Falls back to per-niche default if API call fails.
+# Cost: ~$0.001 per Short with Claude Haiku.
+# ─────────────────────────────────────────────
+def generate_per_image_prompt(image_path: Path, niche: str) -> str:
+    """Use Claude vision to generate a Kling animation prompt tailored to this exact image."""
+    import hashlib
+
+    # Check cache first — keyed by image content hash
+    cache_file = PERSISTENT_DIR / "kling_prompt_cache.json"
+    cache = {}
+    try:
+        if cache_file.exists():
+            with open(cache_file) as f: cache = json.load(f)
+    except Exception:
+        pass
+
+    with open(image_path, "rb") as f:
+        img_data = f.read()
+    img_hash = hashlib.sha256(img_data).hexdigest()[:16]
+
+    if img_hash in cache:
+        print(f"📝 Using cached prompt for {image_path.name}")
+        return cache[img_hash]
+
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not anthropic_key:
+        print("ANTHROPIC_API_KEY not set — using fallback niche prompt")
+        return VERTICAL_ANIMATION_PROMPTS.get(niche, "subtle ambient motion, seamless loop")
+
+    try:
+        from anthropic import Anthropic
+        client = Anthropic(api_key=anthropic_key)
+
+        img_b64 = base64.b64encode(img_data).decode()
+        ext = image_path.suffix.lower()
+        media_type = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
+
+        instruction = f"""You are writing a Kling AI animation prompt for this exact image.
+This will be a 5-second looping background for a YouTube Short about {niche.replace('_', ' ')} sounds.
+
+LOOK AT THE IMAGE CAREFULLY. Identify every element that exists in it.
+
+Write a Kling prompt that animates ONLY what makes physical sense:
+
+MOTION rules (must respect physics):
+- Rain/snow ONLY outside windows or in outdoor scenes — NEVER on indoor furniture
+- Water flows downhill, not upward
+- Indoor flames (fireplace, candle, lantern, lamp bulb) can flicker
+- Steam rises from mugs/cups only if you see a mug/cup
+- Stars twinkle very subtly if visible
+- City lights pulse very subtly if visible through window
+- Mist/fog drifts slowly horizontally
+- Leaves/branches sway gently if outdoor or visible outside window
+- Fireflies/bioluminescence pulse if you see glowing dots
+
+STILL rules (these MUST NOT move):
+- Beds, blankets, pillows, books, bookshelves, walls, ceilings, floors, rugs
+- Furniture, chairs, tables, sofas, armchairs
+- Mountains, rocks, tree trunks, buildings
+- Any people, faces, hands (freeze them)
+- Hanging lanterns/chandeliers (only their flame inside, not the lantern body)
+
+Output format: comma-separated list of motion instructions, then "still:" followed by what doesn't move.
+Maximum 90 words. No preamble. No explanation. Output the prompt directly.
+
+Example output for a cabin interior with rainy window:
+"rain falling outside arched window, raindrops sliding down glass, fireplace flames dancing in stone hearth on right, candle flames flickering on windowsill, lantern flames pulsing softly, steam rising from mug on floor, still: bed, blankets, books, bookshelves, walls, ceiling, rug, leather sofa, picture frame, hanging lantern bodies, cinematic static camera seamless loop"
+
+Now write the prompt for THIS image:"""
+
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": img_b64,
+                    }},
+                    {"type": "text", "text": instruction},
+                ],
+            }],
+        )
+
+        prompt = response.content[0].text.strip()
+        # Strip quotes if Claude wrapped output in them
+        if prompt.startswith('"') and prompt.endswith('"'):
+            prompt = prompt[1:-1]
+        # Ensure it ends with cinematic loop instruction
+        if "seamless loop" not in prompt.lower():
+            prompt += ", cinematic, static camera, seamless loop"
+        if "photorealistic" not in prompt.lower():
+            prompt += ", photorealistic"
+
+        print(f"📝 Auto-generated prompt ({len(prompt)} chars):")
+        print(f"   {prompt[:200]}{'...' if len(prompt) > 200 else ''}")
+
+        # Save to cache so future runs with same image skip the API call
+        try:
+            cache[img_hash] = prompt
+            # Keep cache size reasonable — drop oldest if over 200 entries
+            if len(cache) > 200:
+                cache = dict(list(cache.items())[-200:])
+            with open(cache_file, "w") as f:
+                json.dump(cache, f, indent=2)
+        except Exception as ce:
+            print(f"   (cache write failed: {ce})")
+
+        return prompt
+
+    except Exception as e:
+        print(f"⚠️ Claude vision call failed: {e}")
+        print(f"   Falling back to niche default prompt")
+        return VERTICAL_ANIMATION_PROMPTS.get(niche, "subtle ambient motion, seamless loop")
+
+
 if SHORT_BG_IMAGE.exists() and KLING_ACCESS_KEY and KLING_SECRET_KEY:
-    anim_prompt = VERTICAL_ANIMATION_PROMPTS.get(
-        primary,
-        "static camera, subtle ambient motion, atmospheric movement, seamless loop"
-    )
+    # Generate per-image prompt via Claude vision
+    print("Analysing image to generate tailored Kling prompt...")
+    anim_prompt = generate_per_image_prompt(SHORT_BG_IMAGE, primary)
 
     def kling_jwt(ak, sk):
         h = base64.urlsafe_b64encode(json.dumps({"alg":"HS256","typ":"JWT"}).encode()).rstrip(b'=').decode()
