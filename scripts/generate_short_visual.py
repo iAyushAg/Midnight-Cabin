@@ -614,13 +614,12 @@ if SHORT_BG_IMAGE.exists() and KLING_ACCESS_KEY and KLING_SECRET_KEY:
         with open(str(SHORT_BG_IMAGE), "rb") as f:
             img_b64 = base64.b64encode(f.read()).decode()
 
+        # Kling v2 Master payload — does NOT support cfg_scale or mode parameters
         payload = {
-            "model_name":      "kling-v1-5",
+            "model_name":      "kling-v2-master",
             "image":           img_b64,
             "prompt":          anim_prompt,
             "negative_prompt": NEGATIVE_PROMPT + ", camera pan, camera zoom, camera rotation",
-            "cfg_scale":       0.85,
-            "mode":            "std",
             "duration":        "5",
         }
 
@@ -678,7 +677,7 @@ meta = {
     "source":            "kling" if animation_success else "static",
     "image_source":      "library_portrait" if image_path else "api_portrait",
     "portrait":          True,
-    "model":             "kling-v1-5" if animation_success else "static",
+    "model":             "kling-v2-master" if animation_success else "static",
 }
 with open(str(SHORT_VISUAL_META), "w") as f:
     json.dump(meta, f, indent=2)

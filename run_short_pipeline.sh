@@ -120,19 +120,9 @@ fi
 log "Uploading Short to YouTube..."
 python3 scripts/upload_short.py || fail "upload_short"
 
-# ─────────────────────────────────────────────────────────
-# STEP 6 — CROSS-POST TO TIKTOK, INSTAGRAM, PINTEREST
-# Non-fatal — a cross-post failure never blocks the pipeline.
-# Each platform is attempted independently.
-# Configure in Railway:
-#   TikTok:    TIKTOK_ACCESS_TOKEN, TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET
-#   Instagram: INSTAGRAM_ACCESS_TOKEN, INSTAGRAM_ACCOUNT_ID, CLOUDINARY_URL
-#   Pinterest: PINTEREST_ACCESS_TOKEN, PINTEREST_BOARD_ID
-# ─────────────────────────────────────────────────────────
-log "Cross-posting to TikTok, Instagram, Pinterest..."
-python3 scripts/post_to_socials.py || {
-    log "Cross-posting failed (non-fatal) — YouTube Short still posted"
-}
+# Cross-posting (Instagram/Pinterest) is currently disabled.
+# Re-enable by uncommenting the block below once Buffer + Pinterest are configured.
+# python3 scripts/post_to_socials.py || log "Cross-posting failed (non-fatal)"
 
 log "Short pipeline complete ✅"
 notify_telegram "✅ Short posted!"

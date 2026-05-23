@@ -192,167 +192,84 @@ def pick_library_image(primary):
     print(f"Selected from library: {chosen.name}")
     return chosen
 
-def download_photo_api_fallback(primary, output_path):
-    """
-    Fetch a high-quality niche-matched photograph.
-
-    Priority:
-      1. Unsplash API  (free 50 req/hr  — set UNSPLASH_ACCESS_KEY)
-         unsplash.com/developers → New Application
-      2. Pexels API    (free 200 req/hr — set PEXELS_API_KEY)
-         pexels.com/api → Your API Key
-      3. Pollinations  (last resort, no key, AI-generated)
-
-    Adding both keys takes 5 minutes and makes every niche
-    look completely different and visually stunning.
-    """
-    NICHE_QUERIES = {
-        "rain":         ["rainy cabin window night cozy", "rain on window dark night interior",
-                         "stormy night cabin window warm light", "raindrops window cozy room dark"],
-        "fireplace":    ["fireplace cozy cabin interior night", "crackling fireplace dark room warm",
-                         "stone fireplace cabin winter night", "wood burning fireplace cozy interior"],
-        "river":        ["mountain river night forest moonlight", "forest river dark night mist",
-                         "river cabin night pine trees", "moonlit river mountain wilderness"],
-        "ocean_waves":  ["ocean waves dark night cliffs", "stormy sea night dramatic coast",
-                         "ocean cabin night window waves", "dark ocean waves crashing rocks"],
-        "soft_wind":    ["forest wind night peaceful trees", "misty forest night moonlight",
-                         "dark pine forest night fog", "peaceful night forest path moonlight"],
-        "night_forest": ["dark forest night fireflies moonlight", "forest midnight dark trees stars",
-                         "night forest cabin glow", "enchanted dark forest night mist"],
-        "brown_noise":  ["dark study desk night rain window", "cozy reading nook night lamp rain",
-                         "dark home office night city lights", "night desk lamp rain window warm"],
-        "thunder":      ["thunderstorm night cabin lightning", "storm lightning dark sky night",
-                         "dramatic thunderstorm rain dark", "lightning strike storm night dramatic"],
-    }
-    queries = NICHE_QUERIES.get(primary, [f"cozy cabin {primary} night dark"])
-    query   = random.choice(queries)
-    print(f"Photo search: '{query}' (niche: {primary})")
-
-    # 1. Unsplash API
-    unsplash_key = os.environ.get("UNSPLASH_ACCESS_KEY", "")
-    if unsplash_key:
-        try:
-            r = requests.get(
-                "https://api.unsplash.com/photos/random",
-                params={"query": query, "orientation": "landscape", "content_filter": "high"},
-                headers={"Authorization": f"Client-ID {unsplash_key}"},
-                timeout=20,
-            )
-            r.raise_for_status()
-            photo_url = r.json()["urls"]["regular"]
-            pr = requests.get(photo_url, timeout=60, stream=True)
-            pr.raise_for_status()
-            with open(output_path, "wb") as f:
-                for chunk in pr.iter_content(8192): f.write(chunk)
-            size = os.path.getsize(output_path)
-            if size > 50000:
-                print(f"Unsplash photo saved ({size//1024}KB)")
-                return True
-        except Exception as e:
-            print(f"Unsplash failed: {e}")
-    else:
-        print("UNSPLASH_ACCESS_KEY not set — skipping Unsplash (get free key at unsplash.com/developers)")
-
-    # 2. Pexels API
-    pexels_key = os.environ.get("PEXELS_API_KEY", "")
-    if pexels_key:
-        try:
-            r = requests.get(
-                "https://api.pexels.com/v1/search",
-                params={"query": query, "orientation": "landscape", "size": "large", "per_page": 15},
-                headers={"Authorization": pexels_key},
-                timeout=20,
-            )
-            r.raise_for_status()
-            photos = r.json().get("photos", [])
-            if photos:
-                photo = random.choice(photos[:10])
-                pr = requests.get(photo["src"]["large2x"], timeout=60, stream=True)
-                pr.raise_for_status()
-                with open(output_path, "wb") as f:
-                    for chunk in pr.iter_content(8192): f.write(chunk)
-                size = os.path.getsize(output_path)
-                if size > 50000:
-                    print(f"Pexels photo saved ({size//1024}KB) by {photo.get('photographer','?')}")
-                    return True
-        except Exception as e:
-            print(f"Pexels failed: {e}")
-    else:
-        print("PEXELS_API_KEY not set — skipping Pexels (get free key at pexels.com/api)")
-
-
-    # 2b. Pixabay API (landscape)
-    pixabay_key = os.environ.get("PIXABAY_API_KEY", "")
-    if pixabay_key:
-        try:
-            r = requests.get(
-                "https://pixabay.com/api/",
-                params={
-                    "key":         pixabay_key,
-                    "q":           query,
-                    "image_type":  "photo",
-                    "orientation": "horizontal",
-                    "min_width":   1280,
-                    "min_height":  720,
-                    "per_page":    15,
-                    "order":       "popular",
-                    "safesearch":  "true",
-                },
-                timeout=20,
-            )
-            r.raise_for_status()
-            hits = r.json().get("hits", [])
-            if hits:
-                hit = random.choice(hits[:10])
-                photo_url = hit.get("largeImageURL") or hit.get("webformatURL")
-                pr = requests.get(photo_url, timeout=60, stream=True)
-                pr.raise_for_status()
-                with open(output_path, "wb") as f:
-                    for chunk in pr.iter_content(8192): f.write(chunk)
-                size = os.path.getsize(output_path)
-                if size > 50000:
-                    print(f"Pixabay landscape saved ({size//1024}KB)")
-                    return True
-        except Exception as e:
-            print(f"Pixabay failed: {e}")
-    else:
-        print("PIXABAY_API_KEY not set — skipping Pixabay")
-
-    # 3. Pollinations last resort
+def download_pollinations_fallback(primary, output_path):
+    """Generate image from Pollinations.ai as fallback."""
     PROMPTS = {
-        "rain":         "cozy cabin bedroom night rain on window warm amber fireplace cinematic no people no text",
-        "fireplace":    "stone fireplace roaring fire mountain lodge night warm amber cinematic no people no text",
-        "river":        "mountain river night moonlight pine forest mist cinematic no people no text",
-        "ocean_waves":  "cliffside cabin stormy ocean night waves crashing dark navy cinematic no people no text",
-        "soft_wind":    "japanese cabin bamboo forest twilight paper lanterns cinematic no people no text",
-        "night_forest": "dark forest midnight moonlight through trees fireflies cinematic no people no text",
-        "brown_noise":  "dark study desk night rain window warm lamp cinematic no people no text",
-        "thunder":      "thunderstorm cabin night lightning dark sky dramatic cinematic no people no text",
+        "rain": (
+            "cozy attic bedroom rustic wooden cabin at night, "
+            "large arched window filled with heavy rainfall dark stormy sky outside, "
+            "raindrops on glass, stone fireplace bright orange flames bottom right, "
+            "warm amber lanterns wooden beams, plush bed rumpled blankets, "
+            "bookshelves, steaming mug, deep blue and amber palette, "
+            "cinematic digital painting, photorealistic, ultra detailed, no people, no text"
+        ),
+        "fireplace": (
+            "grand stone fireplace roaring orange fire bottom right, "
+            "mountain lodge interior night, frost window showing snow, "
+            "leather armchair, exposed log walls, warm amber glow, "
+            "cinematic digital painting, photorealistic, ultra detailed, no people, no text"
+        ),
+        "river": (
+            "wooden cabin porch moonlit mountain river at night, "
+            "river flowing over rocks bottom half, mist rising, "
+            "warm lantern light through window, pine forest both sides, "
+            "cool blue and warm amber, cinematic digital painting, no people, no text"
+        ),
+        "ocean_waves": (
+            "cliffside cottage bedroom stormy ocean at night, "
+            "large window showing waves crashing on rocks, "
+            "fireplace small fire bottom right, candle on windowsill, "
+            "deep navy candlelight, cinematic digital painting, no people, no text"
+        ),
+        "soft_wind": (
+            "japanese cabin bamboo forest twilight, "
+            "shoji windows showing swaying bamboo, paper lanterns glowing, "
+            "small fireplace embers bottom right, cherry blossom petals, "
+            "pale lavender deep green gold, cinematic digital painting, no people, no text"
+        ),
+        "night_forest": (
+            "glass treehouse deep forest midnight, "
+            "moonlight through glass walls, fireplace glowing bottom right, "
+            "fairy lights wooden beams, bioluminescent mushrooms, "
+            "forest green midnight blue gold, cinematic digital painting, no people, no text"
+        ),
+        "brown_noise": (
+            "modern loft study night, floor to ceiling windows rain on city glass, "
+            "warm desk lamp open notebook coffee, "
+            "small fireplace bottom right candle, exposed brick dark wood, "
+            "warm amber charcoal navy, cinematic digital painting, no people, no text"
+        ),
+        "thunder": (
+            "cozy cabin living room violent thunderstorm, "
+            "windows showing lightning storm dark sky rain, "
+            "roaring fireplace bright flames bottom right, "
+            "thick blankets armchair, deep blue amber dramatic, "
+            "cinematic digital painting, no people, no text"
+        ),
     }
-    prompt = PROMPTS.get(primary, f"cozy dark cabin {primary} atmosphere night no people no text")
-    prompt += " masterpiece 8k cinematic lighting photorealistic"
+    prompt = PROMPTS.get(primary, f"cozy cabin {primary} night cinematic, no people, no text")
+    prompt += ", masterpiece, best quality, 8k uhd, cinematic lighting"
+
     try:
-        from urllib.parse import quote as _q
-        seed = int(time.time()) % 999999
-        url = (f"https://image.pollinations.ai/prompt/{_q(prompt)}"
+        encoded = quote(prompt)
+        seed = int(time.time()) % 999999  # time-based: unique image every run
+        url = (f"https://image.pollinations.ai/prompt/{encoded}"
                f"?width=1280&height=720&seed={seed}&model=flux&nologo=true&enhance=true")
-        print("Pollinations last resort...")
+        print("Calling Pollinations.ai fallback...")
         resp = requests.get(url, timeout=120, stream=True)
         resp.raise_for_status()
         with open(output_path, "wb") as f:
-            for chunk in resp.iter_content(8192): f.write(chunk)
+            for chunk in resp.iter_content(8192):
+                f.write(chunk)
         size = os.path.getsize(output_path)
         if size < 10000:
+            print(f"Pollinations returned tiny file ({size}b)")
             return False
-        print(f"Pollinations saved: {size//1024}KB")
+        print(f"Pollinations image saved: {size//1024}KB")
         return True
     except Exception as e:
         print(f"Pollinations failed: {e}")
         return False
-
-
-# Keep old name as alias so nothing else breaks
-download_pollinations_fallback = download_photo_api_fallback
 
 # Pick image
 image_path = pick_library_image(primary)
@@ -365,7 +282,7 @@ if image_path:
 else:
     # Fallback to Pollinations
     print(f"No library image for {primary} — generating with Pollinations...")
-    success = download_photo_api_fallback(primary, str(BG_IMAGE))
+    success = download_pollinations_fallback(primary, str(BG_IMAGE))
     if not success:
         print("Pollinations failed — no background image available")
         image_path = None
@@ -432,9 +349,9 @@ def animate_with_kling(image_path, prompt, negative_prompt):
     with open(image_path, "rb") as f:
         img_b64 = base64.b64encode(f.read()).decode()
 
-    # Submit task
+    # Submit task — Kling v2 Master does NOT support cfg_scale or mode parameters
     payload = {
-        "model_name": "kling-v1-5",  # v1.5 has better motion control than v1
+        "model_name": "kling-v2-master",  # v2 has dramatically better motion than v1.5 — especially water, fire, weather
         "image": img_b64,
         "prompt": prompt,
         "negative_prompt": negative_prompt + (
@@ -443,8 +360,6 @@ def animate_with_kling(image_path, prompt, negative_prompt):
             "dolly shot, tracking shot, handheld camera, "
             "scene transition, cut, fade, dissolve"
         ),
-        "cfg_scale": 0.6,    # higher = follows prompt more strictly
-        "mode": "std",
         "duration": "5",     # 5 seconds
     }
 
@@ -576,7 +491,7 @@ visual_meta = {
     "image_height": bg_height,
     "min_image_bytes": 50000,
     "is_dark_screen": False,
-    "model": "kling-v1-5" if (animation_success and KLING_ACCESS_KEY) else
+    "model": "kling-v2-master" if (animation_success and KLING_ACCESS_KEY) else
              "wan-2.2" if animation_success else "static",
     "prompt": animation_prompt,
     "pollinations_seed": int(time.time()) % 999999,
