@@ -808,17 +808,28 @@ SHORT_VISUAL_META_PATH = os.path.join(PERSISTENT_DIR, "current_short_visual.json
 
 animated_niche = None
 short_visual_is_portrait = False
+short_visual_niche = None
 
-# Read short visual meta first
+# Read short visual meta — check niche matches current idea
 try:
     if os.path.exists(SHORT_VISUAL_META_PATH):
         with open(SHORT_VISUAL_META_PATH) as _f: _svm = json.load(_f)
-        if _svm.get("primary") == primary:
-            short_visual_is_portrait = _svm.get("portrait", False)
+        short_visual_niche = _svm.get("primary") or _svm.get("primary_category")
+        niche_matches = (short_visual_niche == primary)
+        short_visual_is_portrait = _svm.get("portrait", False) and niche_matches
+        if not niche_matches:
+            print(f"⚠️  Short visual niche mismatch: stored={short_visual_niche}, current={primary}")
+            print(f"   Clearing stale visual assets so correct niche is used...")
+            # Delete stale portrait assets so we don't accidentally use wrong-niche visuals
+            for stale in [SHORT_BG_VIDEO_PATH, SHORT_BG_IMAGE_PATH,
+                          os.path.join(PERSISTENT_DIR, "bg_short_animated.mp4")]:
+                if os.path.exists(stale):
+                    os.remove(stale)
+                    print(f"   Removed: {stale}")
 except Exception:
     pass
 
-# Read main visual meta as fallback
+# Read main visual meta
 try:
     if os.path.exists(VISUAL_META_PATH):
         with open(VISUAL_META_PATH) as _vmf: _vm = json.load(_vmf)
@@ -826,29 +837,32 @@ try:
 except Exception:
     pass
 
-print("DEBUG — Short video source check:")
+print(f"DEBUG — Niche: {primary} | Short visual niche: {short_visual_niche} | Main animated niche: {animated_niche}")
+print(f"DEBUG — Short video source check:")
 print(f"  bg_short_animated (app):        {SHORT_BG_VIDEO_PATH} — {os.path.exists(SHORT_BG_VIDEO_PATH)}")
 print(f"  bg_short_animated (persistent): {PERSISTENT_SHORT_ANIM} — {os.path.exists(PERSISTENT_SHORT_ANIM)}")
 print(f"  bg_short.jpg:                   {SHORT_BG_IMAGE_PATH} — {os.path.exists(SHORT_BG_IMAGE_PATH)}")
 print(f"  bg_animated (main):             {BG_ANIMATED} — {os.path.exists(BG_ANIMATED)}")
 print(f"  source video:                   {SOURCE_VIDEO} — {os.path.exists(SOURCE_VIDEO)}")
 
-# The vf scale/crop filter handles both portrait and landscape sources
-# For portrait sources (1080x1920), scale=1080:1920 is a no-op — no quality loss
-# For landscape sources (1920x1080), it crops the centre column — expected
-
+# ── PRIORITY ORDER (all with niche checks) ──────────────────────
+# 1. Dedicated portrait Short animation — niche verified via meta
 if os.path.exists(SHORT_BG_VIDEO_PATH) and short_visual_is_portrait:
-    print("✅ Using dedicated portrait Short animation")
+    print(f"✅ Using dedicated portrait Short animation (niche={primary})")
     SHORT_VIDEO_SOURCE = SHORT_BG_VIDEO_PATH
     USE_LOOP = True
+
+# 2. Persistent portrait Short animation — niche verified via meta
 elif os.path.exists(PERSISTENT_SHORT_ANIM) and short_visual_is_portrait:
-    print("✅ Using persistent portrait Short animation")
+    print(f"✅ Using persistent portrait Short animation (niche={primary})")
     import shutil as _sh
     _sh.copy(PERSISTENT_SHORT_ANIM, SHORT_BG_VIDEO_PATH)
     SHORT_VIDEO_SOURCE = SHORT_BG_VIDEO_PATH
     USE_LOOP = True
-elif os.path.exists(SHORT_BG_IMAGE_PATH):
-    print("✅ Using portrait Short still image")
+
+# 3. Portrait still image — ONLY if niche matches
+elif os.path.exists(SHORT_BG_IMAGE_PATH) and short_visual_niche == primary:
+    print(f"✅ Using portrait Short still image (niche={primary})")
     STATIC_BG = os.path.join(BASE_DIR, "output", "short_bg_static.mp4")
     static_result = subprocess.run([
         "ffmpeg", "-y", "-loop", "1", "-i", SHORT_BG_IMAGE_PATH,
@@ -856,22 +870,28 @@ elif os.path.exists(SHORT_BG_IMAGE_PATH):
         "-vf", f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,{color_grade},format=yuv420p",
         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-r", "30", STATIC_BG
     ], capture_output=True, text=True)
-    SHORT_VIDEO_SOURCE = STATIC_BG if static_result.returncode == 0 else SOURCE_VIDEO
+    SHORT_VIDEO_SOURCE = STATIC_BG if static_result.returncode == 0 else None
     USE_LOOP = static_result.returncode == 0
-elif os.path.exists(BG_ANIMATED) and (animated_niche is None or animated_niche == primary):
+
+# 4. Main animated bg — ONLY if niche matches
+elif os.path.exists(BG_ANIMATED) and animated_niche == primary:
     print(f"✅ Using main animated bg (niche={primary})")
     SHORT_VIDEO_SOURCE = BG_ANIMATED
     USE_LOOP = True
-elif os.path.exists(BG_ANIMATED_PERSISTENT) and (animated_niche is None or animated_niche == primary):
+
+# 5. Persistent main animated bg — ONLY if niche matches
+elif os.path.exists(BG_ANIMATED_PERSISTENT) and animated_niche == primary:
     print(f"✅ Using persistent main animated bg (niche={primary})")
     SHORT_VIDEO_SOURCE = BG_ANIMATED_PERSISTENT
     import shutil as _shutil2
     _shutil2.copy(BG_ANIMATED_PERSISTENT, BG_ANIMATED)
     USE_LOOP = True
+
+# 6. Library image for THIS niche (correct niche guaranteed)
 else:
     library_image = pick_library_image_for_niche(primary)
     if library_image:
-        print(f"✅ Using library image for '{primary}': {library_image}")
+        print(f"✅ Using library image for '{primary}': {os.path.basename(library_image)}")
         STATIC_BG = os.path.join(BASE_DIR, "output", "short_bg_static.mp4")
         static_result = subprocess.run([
             "ffmpeg", "-y", "-loop", "1", "-i", library_image,
@@ -879,12 +899,11 @@ else:
             "-vf", f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,{color_grade},format=yuv420p",
             "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-r", "30", STATIC_BG
         ], capture_output=True, text=True)
-        SHORT_VIDEO_SOURCE = STATIC_BG if static_result.returncode == 0 else (SOURCE_VIDEO if os.path.exists(SOURCE_VIDEO) else None)
+        SHORT_VIDEO_SOURCE = STATIC_BG if static_result.returncode == 0 else None
         USE_LOOP = static_result.returncode == 0
-    elif os.path.exists(SOURCE_VIDEO):
-        SHORT_VIDEO_SOURCE = SOURCE_VIDEO
-        USE_LOOP = False
     else:
+        SHORT_VIDEO_SOURCE = None
+        USE_LOOP = False
         # No image available — generate a minimal black frame with colour overlay
         print("No visual source found — generating minimal procedural visual")
         STATIC_BG = os.path.join(BASE_DIR, "output", "short_bg_static.mp4")

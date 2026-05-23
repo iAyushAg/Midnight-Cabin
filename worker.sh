@@ -89,16 +89,14 @@ PYEOF
 
 # ─────────────────────────────────────────────
 # SHORT LOOP — fully independent background process
-# Starts after a 30-minute warmup delay so it doesn't
-# compete with startup I/O, then runs every 24h.
+# Runs immediately on deploy, then every 12h.
 # ─────────────────────────────────────────────
 short_loop() {
-    log "Short loop: waiting 30 minutes before first Short..."
-    sleep 1800  # 30 min warmup — avoids startup resource clash
+    log "Short loop: starting immediately..."
+    notify "🎬 Short pipeline starting (first run on deploy)..."
 
     while true; do
         log "Short loop: running Short pipeline..."
-        notify "🎬 Short pipeline starting..."
         bash run_short_pipeline.sh && \
             notify "✅ Short posted!" || \
             notify "⚠️ Short pipeline failed (non-fatal)"

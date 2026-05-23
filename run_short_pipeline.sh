@@ -115,10 +115,24 @@ if [ ! -f "output/short.mp4" ]; then
 fi
 
 # ─────────────────────────────────────────────────────────
-# STEP 5 — UPLOAD
+# STEP 5 — UPLOAD TO YOUTUBE
 # ─────────────────────────────────────────────────────────
-log "Uploading Short..."
+log "Uploading Short to YouTube..."
 python3 scripts/upload_short.py || fail "upload_short"
+
+# ─────────────────────────────────────────────────────────
+# STEP 6 — CROSS-POST TO TIKTOK, INSTAGRAM, PINTEREST
+# Non-fatal — a cross-post failure never blocks the pipeline.
+# Each platform is attempted independently.
+# Configure in Railway:
+#   TikTok:    TIKTOK_ACCESS_TOKEN, TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET
+#   Instagram: INSTAGRAM_ACCESS_TOKEN, INSTAGRAM_ACCOUNT_ID, CLOUDINARY_URL
+#   Pinterest: PINTEREST_ACCESS_TOKEN, PINTEREST_BOARD_ID
+# ─────────────────────────────────────────────────────────
+log "Cross-posting to TikTok, Instagram, Pinterest..."
+python3 scripts/post_to_socials.py || {
+    log "Cross-posting failed (non-fatal) — YouTube Short still posted"
+}
 
 log "Short pipeline complete ✅"
 notify_telegram "✅ Short posted!"

@@ -321,20 +321,152 @@ KLING_ACCESS_KEY = os.environ.get("KLING_ACCESS_KEY", "")
 KLING_SECRET_KEY = os.environ.get("KLING_SECRET_KEY", "")
 
 VERTICAL_ANIMATION_PROMPTS = {
-    "rain":         "static camera, raindrops streaming down glass, fireplace flames flickering, all objects frozen, seamless loop",
-    "fireplace":    "static camera, fireplace flames dancing upward, embers glowing, smoke wisping, all objects frozen, seamless loop",
-    "river":        "static camera, water flowing downward over rocks, mist drifting, moonlight shimmering, all objects frozen, seamless loop",
-    "ocean_waves":  "static camera, waves rolling and crashing, white foam forming, all objects frozen, seamless loop",
-    "soft_wind":    "static camera, tree branches swaying gently, leaves rustling slowly, all objects frozen, seamless loop",
-    "night_forest": "static camera, fireflies blinking and drifting, fairy lights twinkling, all objects frozen, seamless loop",
-    "brown_noise":  "static camera, raindrops on window glass, candle flame wavering gently, all objects frozen, seamless loop",
-    "thunder":      "static camera, heavy rain on glass, brief lightning flash, fireplace blazing, all objects frozen, seamless loop",
+    # Rain library: cabin interiors with arched windows showing rainy view + fireplace + lanterns + candles + mug
+    #          OR outdoor scenes (misty cabin exterior, Asian roof with heavy rain, lakeside in mist, rainy cafe terrace)
+    "rain": (
+        "if there is a window: rain falling outside the window, raindrops sliding down glass panes, "
+        "wet view of trees and mountains through window, "
+        "if this is an outdoor scene: rain falling visibly from the sky onto roof tiles, leaves, ground, "
+        "raindrops bouncing on wet surfaces, water dripping from edges, "
+        "if any candle is visible: flame flickering gently, "
+        "if any fireplace is visible: orange flames dancing, embers glowing, "
+        "if any lantern is visible: warm light pulsing, "
+        "if any mug or cup is visible: faint steam rising, "
+        "if there is mist in the scene: mist drifting slowly, "
+        "all furniture, beds, books, rugs, walls completely still, "
+        "no rain falling indoors, no motion on solid objects, "
+        "cinematic, static camera, seamless loop, photorealistic"
+    ),
+
+    # Fireplace library: cabin interiors with stone fireplace + armchair + lamp + lantern + snow outside window
+    #          OR pure indoor fireplace scenes (some with people — avoid)
+    "fireplace": (
+        "fire flames dancing and flickering vigorously in the fireplace or hearth, "
+        "burning logs glowing with shifting orange embers, "
+        "ember sparks drifting upward in warm air currents, "
+        "warm golden light pulsing across the room, "
+        "if any candle is visible: small flame wavering, "
+        "if any lantern is visible: warm light pulsing softly, "
+        "if any window shows outdoor scene: snow falling outside, "
+        "if any mug is visible: faint steam rising upward, "
+        "armchairs, sofas, tables, bookshelves, rugs, walls completely still, "
+        "any person in the scene completely frozen and motionless, "
+        "any chandelier or hanging light hangs perfectly still, "
+        "cinematic, static camera, seamless loop, photorealistic"
+    ),
+
+    # River library: cabin porches with river outside + fireplace through window + lanterns
+    #          OR pure outdoor rapids (rocks, ferns, flowing water)
+    "river": (
+        "river or stream water flowing naturally over rocks, "
+        "white water cascading and forming small rapids, "
+        "ripples spreading on the water surface, "
+        "if mist is visible above water: mist drifting slowly upward, "
+        "if there are ferns or leaves visible: very gentle swaying in the breeze, "
+        "if a porch lantern is visible: warm flame flickering, "
+        "if a fireplace is visible through a window: flames dancing inside, "
+        "if moonlight is on the water: light shimmering on ripples, "
+        "rocks, porch boards, rocking chair, mountains, tree trunks completely still, "
+        "only water and mist move, "
+        "cinematic, static camera, seamless loop, photorealistic"
+    ),
+
+    # Ocean library: PNGs = cabin interior with bay window view of stormy ocean + fireplace + bed
+    #          OR pure outdoor cliff with crashing waves on rocks
+    "ocean_waves": (
+        "if there is a window with ocean view: waves rolling and crashing against rocks outside, "
+        "if this is an outdoor scene: waves rolling toward shore and breaking on rocks, "
+        "white foam forming and spreading across the water surface, "
+        "spray rising into the air from breaking waves, "
+        "distant waves cresting on the horizon, "
+        "if moon is visible: moonlight shimmering on the water, "
+        "if any candle is visible on a windowsill: flame flickering, "
+        "if any fireplace is visible: flames dancing, "
+        "bed, blankets, walls, ceiling, rocks, vegetation completely still, "
+        "only water and indoor flames move, "
+        "cinematic, static camera, seamless loop, photorealistic"
+    ),
+
+    # Soft_wind library: Japanese-style rooms with bamboo forest outside, paper lanterns, fireplace, zen garden
+    "soft_wind": (
+        "if bamboo or trees are visible outside: bamboo stalks and leaves swaying gently in a soft breeze, "
+        "if cherry blossom petals are visible: petals drifting slowly through the air, "
+        "if any paper lantern is visible: warm light pulsing softly, candle inside flickering, "
+        "if any fireplace is visible: flames dancing quietly, "
+        "if any curtain or fabric is visible: subtle movement in the wind, "
+        "very gentle atmospheric motion overall, "
+        "tatami floors, beds, futons, walls, zen garden rocks, sand patterns, lanterns completely still, "
+        "no shaking, peaceful calm atmosphere, "
+        "cinematic, static camera, seamless loop, photorealistic"
+    ),
+
+    # Night_forest library: PNGs = glass treehouse with bioluminescent mushrooms + fairy lights + hammock + fireplace
+    #              OR pure outdoor — stars through trees, dark forest paths
+    "night_forest": (
+        "if fireflies or glowing dots are visible: blinking and floating gently throughout the scene, "
+        "if fairy lights are visible: twinkling softly, "
+        "if bioluminescent mushrooms are visible: gentle blue glow pulsing, "
+        "if trees or leaves are visible: very subtle swaying in soft breeze, "
+        "if stars are visible: extremely subtle twinkle, "
+        "if any fireplace is visible: flames dancing warmly, "
+        "if mist is between trees: slow drifting motion, "
+        "hammock, bed, bookshelves, tree trunks, rocks, paths completely still, "
+        "magical peaceful atmosphere, "
+        "cinematic, static camera, seamless loop, photorealistic"
+    ),
+
+    # Brown_noise library: indoor study/desk with rainy window + city skyline + desk lamp + book + mug + candle + fireplace
+    "brown_noise": (
+        "if a window shows rain: raindrops sliding down the glass, light rain on outdoor window, "
+        "if a city skyline is visible through the window: distant city lights twinkling and pulsing softly, "
+        "if a desk lamp or bulb is visible: warm filament glow pulsing very gently, "
+        "if a candle is visible: small flame wavering softly, "
+        "if a mug is visible on the desk: thin steam rising gently from the cup, "
+        "if a fireplace is visible: flames dancing quietly, "
+        "very subtle calm motion overall, "
+        "desk, open book, chair, bookshelves, walls, plants completely still, "
+        "calm focused study atmosphere, minimal motion, "
+        "cinematic, static camera, seamless loop, photorealistic"
+    ),
+
+    # Thunder library: indoor study (same as brown_noise) with rainy window + city + fireplace + desk + candle
+    "thunder": (
+        "heavy rain falling outside the window, raindrops streaming down the glass intensely, "
+        "occasional bright lightning flashing briefly across the night sky outside, "
+        "if a city skyline is visible: lights pulsing more intensely during lightning flashes, "
+        "if a fireplace is visible: flames flickering more vigorously during the storm, "
+        "if a candle is visible: flame wavering with each lightning flash, "
+        "if a desk lamp is visible: warm bulb steady but pulsing slightly during flashes, "
+        "if a mug is visible: gentle steam rising, "
+        "indoor furniture, desk, books, chair, bookshelves, walls completely still, "
+        "storm intense outside, peaceful focused interior, "
+        "cinematic, static camera, seamless loop, photorealistic"
+    ),
 }
 
 NEGATIVE_PROMPT = (
-    "camera movement, camera pan, camera zoom, camera drift, "
-    "people, faces, hands, text, watermark, logo, "
-    "distortion, warping, flickering artifacts"
+    # Camera
+    "fast camera movement, camera panning, camera zooming, camera rotating, "
+    "shaky camera, dolly motion, parallax shift, "
+    # People (some library images have people)
+    "people moving, faces, hands moving, body movement, animated people, "
+    "person walking, head turning, eyes blinking, "
+    # Watermarks (some library images have watermarks)
+    "text overlays, watermark animating, watermark moving, logo animating, "
+    "signature changing, captions, subtitles, "
+    # Physics-violating motion
+    "rain falling indoors, rain inside a room, water inside walls, "
+    "snow indoors, snow inside, "
+    "furniture moving, beds shifting, sofas moving, armchairs rotating, "
+    "books moving, bookshelves shifting, "
+    "walls warping, ceiling moving, floors warping, rugs floating, "
+    "tables wobbling, chairs moving, picture frames swinging, "
+    "chandeliers swinging wildly, lanterns swinging wildly, "
+    "tree trunks bending, rocks moving, mountains shifting, "
+    # AI artifacts
+    "distortion, warping, melting, morphing, flickering artifacts, "
+    "abrupt motion, glitches, double exposure, blurry, low quality, "
+    "extra limbs, deformed objects, broken geometry"
 )
 
 animation_success = False
@@ -363,7 +495,7 @@ if SHORT_BG_IMAGE.exists() and KLING_ACCESS_KEY and KLING_SECRET_KEY:
             "image":           img_b64,
             "prompt":          anim_prompt,
             "negative_prompt": NEGATIVE_PROMPT + ", camera pan, camera zoom, camera rotation",
-            "cfg_scale":       0.6,
+            "cfg_scale":       0.85,
             "mode":            "std",
             "duration":        "5",
         }
