@@ -1,11 +1,26 @@
 #!/bin/bash
-set -e
 
 # ─────────────────────────────────────────────────────────
-# SHORT PIPELINE
-# Runs independently from main pipeline
-# Generates and uploads a 60-second YouTube Short daily
+# SHORT PIPELINE — FULLY SELF-CONTAINED
+#
+# Completely decoupled from the main pipeline.
+# Has its own idea, its own audio, its own visual.
+# Works correctly even if run_pipeline.sh is disabled forever.
+#
+# Never reads:  current_idea.json   (main pipeline's idea)
+#               current_visual.json (main pipeline's visual)
+#               output/video.mp4    (main pipeline's video)
+#               niche_rotation.json (main pipeline's rotation)
+#
+# Owns:  short_idea.json           — this Short's idea
+#        short_niche_rotation.json — Short's own niche rotation
+#        short_audio.wav           — this Short's audio mix
+#        bg_short_animated.mp4     — this Short's portrait visual
+#        current_short_visual.json — this Short's visual metadata
+#        short.mp4                 — final Short output
 # ─────────────────────────────────────────────────────────
+
+set -e
 
 PERSISTENT_DIR="${PERSISTENT_DIR:-/data}"
 
@@ -19,179 +34,91 @@ notify_telegram() {
 }
 
 fail() {
-    notify_telegram "❌ Short pipeline failed at: $1"
+    notify_telegram "❌ Short pipeline failed: $1"
     exit 1
 }
 
-echo "Starting Short pipeline..."
-notify_telegram "🎬 Generating YouTube Short..."
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+log "Short pipeline starting..."
+notify_telegram "🎬 Short pipeline starting..."
+
+mkdir -p video output audio
 
 # ─────────────────────────────────────────────────────────
-# STEP 1 — RESTORE VISUAL ASSETS FROM PERSISTENT DIR
-# Ephemeral filesystem resets on every deploy.
-# bg_animated.mp4 and bg.jpg live in /data (persistent).
-# Copy them back into the working directory before anything
-# else runs — generate_short.py and the ffmpeg fallback
-# both need them to be at video/ paths.
+# STEP 1 — GENERATE SHORT IDEA
+#
+# Uses SHORT_IDEA_PATH and SHORT_ROTATION_FILE so it never
+# touches the main pipeline's current_idea.json or
+# niche_rotation.json. The Short has its own niche rotation
+# that advances independently every 12 hours.
 # ─────────────────────────────────────────────────────────
-mkdir -p video output
+log "Generating Short idea..."
+SHORT_IDEA_PATH="$PERSISTENT_DIR/short_idea.json" \
+SHORT_ROTATION_FILE="$PERSISTENT_DIR/short_niche_rotation.json" \
+IDEA_OUTPUT_PATH="$PERSISTENT_DIR/short_idea.json" \
+python3 scripts/generate_short_idea.py || fail "generate_short_idea"
 
-if [ ! -f "video/bg_animated.mp4" ] && [ -f "$PERSISTENT_DIR/bg_animated.mp4" ]; then
-    echo "Restoring bg_animated.mp4 from persistent dir..."
-    cp "$PERSISTENT_DIR/bg_animated.mp4" video/bg_animated.mp4
+# Verify idea was written
+if [ ! -f "$PERSISTENT_DIR/short_idea.json" ]; then
+    fail "short_idea.json not written"
 fi
 
-if [ ! -f "video/bg.jpg" ] && [ -f "$PERSISTENT_DIR/bg.jpg" ]; then
-    echo "Restoring bg.jpg from persistent dir..."
-    cp "$PERSISTENT_DIR/bg.jpg" video/bg.jpg
+log "Short idea generated: $(python3 -c "import json; d=json.load(open('$PERSISTENT_DIR/short_idea.json')); print(d.get('title','?')[:60])")"
+
+# ─────────────────────────────────────────────────────────
+# STEP 2 — GENERATE SHORT AUDIO
+#
+# Reads short_idea.json (not current_idea.json).
+# Writes audio/short_audio.wav — the Short's own audio mix.
+# Duration: 3 minutes (enough for a 28s Short + headroom).
+# ─────────────────────────────────────────────────────────
+log "Generating Short audio..."
+SHORT_AUDIO_MODE=1 \
+SHORT_IDEA_PATH="$PERSISTENT_DIR/short_idea.json" \
+python3 scripts/generate_short_audio.py || fail "generate_short_audio"
+
+if [ ! -f "audio/short_audio.wav" ]; then
+    fail "short_audio.wav not written"
 fi
 
 # ─────────────────────────────────────────────────────────
-# STEP 2 — GENERATE FRESH IDEA, NICHE-LOCKED TO VISUAL
+# STEP 3 — GENERATE SHORT VISUAL (PORTRAIT)
 #
-# Key constraint: generate_short.py only uses bg_animated.mp4
-# if the idea's primary niche matches what the visual was made
-# for (stored in current_visual.json). If there's a mismatch
-# it falls back to library images or the source video.
-#
-# Strategy: read the niche of the available animated visual
-# first, then override the niche rotation so the fresh idea
-# is always compatible with what we can actually show.
-# This gives us fresh hook text + voiceover + title every
-# run, while guaranteeing the visual asset will be used.
-#
-# If no visual metadata exists (first ever deploy), let
-# generate_idea.py pick freely — it will use whatever
-# visual asset it finds.
+# Reads short_idea.json (not current_idea.json).
+# Fetches niche-matched portrait photo from Pexels/Unsplash/Pixabay.
+# Animates with Kling → bg_short_animated.mp4 (9:16 vertical).
+# Writes current_short_visual.json (not current_visual.json).
 # ─────────────────────────────────────────────────────────
-AVAILABLE_NICHE=$(python3 - << 'PYEOF'
-import json, os
-from pathlib import Path
-
-persistent_dir = Path(os.environ.get("PERSISTENT_DIR", "/data"))
-visual_meta = persistent_dir / "current_visual.json"
-
-if not visual_meta.exists():
-    print("")
-    exit()
-
-try:
-    with open(visual_meta) as f:
-        vm = json.load(f)
-    niche = vm.get("primary") or vm.get("primary_category") or ""
-    valid = {"rain","river","thunder","fireplace","ocean_waves",
-             "soft_wind","night_forest","brown_noise"}
-    print(niche if niche in valid else "")
-except Exception:
-    print("")
-PYEOF
-)
-
-if [ -n "$AVAILABLE_NICHE" ]; then
-    echo "Visual asset niche: $AVAILABLE_NICHE — locking idea generation to match"
-    # Inject the niche into the rotation queue so generate_idea.py
-    # picks it as the next primary. We prepend it to the queue
-    # rather than overwriting, so the rotation recovers naturally.
-    python3 - << PYEOF
-import json, os
-from pathlib import Path
-
-persistent_dir = Path(os.environ.get("PERSISTENT_DIR", "/data"))
-rotation_file  = persistent_dir / "niche_rotation.json"
-niche = "$AVAILABLE_NICHE"
-
-rotation = {"queue": [], "used": []}
-try:
-    if rotation_file.exists():
-        with open(rotation_file) as f:
-            rotation = json.load(f)
-except Exception:
-    pass
-
-queue = rotation.get("queue", [])
-# Remove it if it's already in the queue to avoid duplicates
-queue = [n for n in queue if n != niche]
-# Put it at the front so it's picked next
-queue.insert(0, niche)
-rotation["queue"] = queue
-
-with open(rotation_file, "w") as f:
-    json.dump(rotation, f, indent=2)
-
-print(f"Rotation queue primed with: {niche}")
-PYEOF
-else
-    echo "No visual metadata found — letting idea generation pick freely"
-fi
-
-echo "Generating fresh idea for Short..."
-python3 scripts/generate_idea.py || {
-    echo "Idea generation failed — using existing idea if available"
-    # Don't exit — if current_idea.json exists in /data we can still proceed
+log "Generating Short portrait visual..."
+SHORT_IDEA_PATH="$PERSISTENT_DIR/short_idea.json" \
+python3 scripts/generate_short_visual.py || {
+    log "Short visual generation failed — will use fallback in render step"
 }
 
 # ─────────────────────────────────────────────────────────
-# STEP 3 — ENSURE AUDIO SOURCE EXISTS
-# Shorts pull audio from output/video.mp4.
-# If the main video hasn't run yet (fresh deploy or 48h
-# delay not elapsed), build a minimal 3-minute source
-# video from the restored visual assets.
+# STEP 4 — RENDER THE SHORT
+#
+# Reads short_idea.json for hook text / voiceover / niche.
+# Reads audio/short_audio.wav for ambient sound.
+# Reads bg_short_animated.mp4 or bg_short.jpg for visuals.
+# Writes output/short.mp4
 # ─────────────────────────────────────────────────────────
-if [ ! -f "output/video.mp4" ]; then
-    echo "No main video found — building minimal audio source for Short..."
+log "Rendering Short..."
+SHORT_IDEA_PATH="$PERSISTENT_DIR/short_idea.json" \
+python3 scripts/generate_short.py || fail "generate_short"
 
-    if [ ! -f "$PERSISTENT_DIR/current_idea.json" ]; then
-        echo "No idea available — Short pipeline cannot run yet"
-        notify_telegram "⚠️ Short skipped — no idea available yet (first deploy?)"
-        exit 0
-    fi
-
-    python3 scripts/generate_audio.py || fail "generate_audio for short"
-
-    DURATION_SECONDS=180
-
-    if [ -f "video/bg_animated.mp4" ]; then
-        echo "Building minimal source from animated background..."
-        ffmpeg -y \
-            -stream_loop -1 -i video/bg_animated.mp4 \
-            -stream_loop -1 -i audio/brown_noise.wav \
-            -t "$DURATION_SECONDS" \
-            -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
-            -c:v libx264 -preset ultrafast -crf 28 \
-            -c:a aac -b:a 128k \
-            -r 30 -movflags +faststart \
-            output/video.mp4 || fail "minimal video render (animated)"
-
-    elif [ -f "video/bg.jpg" ]; then
-        echo "Building minimal source from still image..."
-        ffmpeg -y \
-            -loop 1 -i video/bg.jpg \
-            -stream_loop -1 -i audio/brown_noise.wav \
-            -t "$DURATION_SECONDS" \
-            -vf "scale=1280:720,format=yuv420p" \
-            -c:v libx264 -preset ultrafast -crf 28 \
-            -c:a aac -b:a 128k \
-            -r 30 -movflags +faststart \
-            output/video.mp4 || fail "minimal video render (image)"
-
-    else
-        echo "No visual asset found — using black background (audio only)"
-        ffmpeg -y \
-            -f lavfi -i color=c=black:size=1280x720:rate=30 \
-            -stream_loop -1 -i audio/brown_noise.wav \
-            -t "$DURATION_SECONDS" \
-            -vf "format=yuv420p" \
-            -c:v libx264 -preset ultrafast -crf 28 \
-            -c:a aac -b:a 128k \
-            -movflags +faststart \
-            output/video.mp4 || fail "black video render"
-    fi
+if [ ! -f "output/short.mp4" ]; then
+    fail "output/short.mp4 not written"
 fi
 
 # ─────────────────────────────────────────────────────────
-# STEP 4 — GENERATE AND UPLOAD THE SHORT
+# STEP 5 — UPLOAD
 # ─────────────────────────────────────────────────────────
-python3 scripts/generate_short.py || fail "generate_short"
-python3 scripts/upload_short.py   || fail "upload_short"
+log "Uploading Short..."
+python3 scripts/upload_short.py || fail "upload_short"
 
-echo "Short pipeline complete"
+log "Short pipeline complete ✅"
+notify_telegram "✅ Short posted!"

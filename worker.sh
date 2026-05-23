@@ -22,14 +22,15 @@
 # Railway env vars:
 #   SKIP_MAIN_DELAY=1        — bypass the 48h deploy delay once
 #   MAIN_INTERVAL_HOURS=48   — change main pipeline cadence
-#   SHORT_INTERVAL_HOURS=24  — change Short cadence
+#   SHORT_INTERVAL_HOURS=12  — change Short cadence (default: 12h = 2 Shorts/day)
+#   DISABLE_MAIN=1             — run Short loop only, main pipeline never fires
 # ─────────────────────────────────────────────────────────
 
 PERSISTENT_DIR="${PERSISTENT_DIR:-/data}"
 mkdir -p "$PERSISTENT_DIR"
 
 MAIN_INTERVAL_HOURS="${MAIN_INTERVAL_HOURS:-48}"
-SHORT_INTERVAL_HOURS="${SHORT_INTERVAL_HOURS:-24}"
+SHORT_INTERVAL_HOURS="${SHORT_INTERVAL_HOURS:-12}"
 MAIN_INTERVAL=$(( MAIN_INTERVAL_HOURS * 3600 ))
 SHORT_INTERVAL=$(( SHORT_INTERVAL_HOURS * 3600 ))
 
@@ -114,6 +115,14 @@ short_loop() {
 # MAIN LOOP — delayed on deploy
 # ─────────────────────────────────────────────
 main_loop() {
+    # Respect DISABLE_MAIN env var — turns off long-form entirely
+    if [ "${DISABLE_MAIN:-0}" = "1" ]; then
+        log "Main loop: DISABLE_MAIN=1 — main pipeline is off. Only Shorts will run."
+        notify "ℹ️ Main pipeline disabled (DISABLE_MAIN=1). Shorts running every ${SHORT_INTERVAL_HOURS}h."
+        # Sleep forever — keeps the function alive without doing anything
+        while true; do sleep 86400; done
+    fi
+
     # First run: respect the 48h deploy delay unless overridden
     if [ "${SKIP_MAIN_DELAY:-0}" = "1" ]; then
         log "Main loop: SKIP_MAIN_DELAY=1 — running immediately"

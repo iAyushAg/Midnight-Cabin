@@ -192,88 +192,167 @@ def pick_library_image(primary):
     print(f"Selected from library: {chosen.name}")
     return chosen
 
-def download_pollinations_fallback(primary, output_path):
+def download_photo_api_fallback(primary, output_path):
     """
-    Fetch a high-quality real photograph from Unsplash as image fallback.
+    Fetch a high-quality niche-matched photograph.
 
-    Unsplash is free, no API key needed for the source URL pattern, and
-    produces dramatically better thumbnails than AI-generated Pollinations images.
-    Real photography = higher perceived production value = better CTR.
+    Priority:
+      1. Unsplash API  (free 50 req/hr  — set UNSPLASH_ACCESS_KEY)
+         unsplash.com/developers → New Application
+      2. Pexels API    (free 200 req/hr — set PEXELS_API_KEY)
+         pexels.com/api → Your API Key
+      3. Pollinations  (last resort, no key, AI-generated)
 
-    Falls back to Pollinations only if Unsplash fails.
+    Adding both keys takes 5 minutes and makes every niche
+    look completely different and visually stunning.
     """
-
-    # Curated Unsplash search queries per niche
-    # These return the highest-quality editorial photography for each theme
-    UNSPLASH_QUERIES = {
-        "rain":         ["rainy cabin window cozy", "rain window night dark", "cozy cabin rain"],
-        "fireplace":    ["fireplace cozy cabin night", "crackling fireplace warm", "cabin fireplace winter"],
-        "river":        ["mountain river night forest", "river cabin moonlight", "forest stream night"],
-        "ocean_waves":  ["ocean waves night cabin", "stormy ocean cliffs", "dark ocean waves"],
-        "soft_wind":    ["forest wind night peaceful", "dark forest moonlight", "misty forest night"],
-        "night_forest": ["dark forest night moonlight", "forest night fireflies", "pine forest midnight"],
-        "brown_noise":  ["dark rainy window study", "cozy study night rain", "dark desk lamp night"],
-        "thunder":      ["thunderstorm night cabin", "lightning storm dark sky", "storm rain window night"],
+    NICHE_QUERIES = {
+        "rain":         ["rainy cabin window night cozy", "rain on window dark night interior",
+                         "stormy night cabin window warm light", "raindrops window cozy room dark"],
+        "fireplace":    ["fireplace cozy cabin interior night", "crackling fireplace dark room warm",
+                         "stone fireplace cabin winter night", "wood burning fireplace cozy interior"],
+        "river":        ["mountain river night forest moonlight", "forest river dark night mist",
+                         "river cabin night pine trees", "moonlit river mountain wilderness"],
+        "ocean_waves":  ["ocean waves dark night cliffs", "stormy sea night dramatic coast",
+                         "ocean cabin night window waves", "dark ocean waves crashing rocks"],
+        "soft_wind":    ["forest wind night peaceful trees", "misty forest night moonlight",
+                         "dark pine forest night fog", "peaceful night forest path moonlight"],
+        "night_forest": ["dark forest night fireflies moonlight", "forest midnight dark trees stars",
+                         "night forest cabin glow", "enchanted dark forest night mist"],
+        "brown_noise":  ["dark study desk night rain window", "cozy reading nook night lamp rain",
+                         "dark home office night city lights", "night desk lamp rain window warm"],
+        "thunder":      ["thunderstorm night cabin lightning", "storm lightning dark sky night",
+                         "dramatic thunderstorm rain dark", "lightning strike storm night dramatic"],
     }
+    queries = NICHE_QUERIES.get(primary, [f"cozy cabin {primary} night dark"])
+    query   = random.choice(queries)
+    print(f"Photo search: '{query}' (niche: {primary})")
 
-    queries = UNSPLASH_QUERIES.get(primary, ["cozy cabin night dark"])
-    query = random.choice(queries)
+    # 1. Unsplash API
+    unsplash_key = os.environ.get("UNSPLASH_ACCESS_KEY", "")
+    if unsplash_key:
+        try:
+            r = requests.get(
+                "https://api.unsplash.com/photos/random",
+                params={"query": query, "orientation": "landscape", "content_filter": "high"},
+                headers={"Authorization": f"Client-ID {unsplash_key}"},
+                timeout=20,
+            )
+            r.raise_for_status()
+            photo_url = r.json()["urls"]["regular"]
+            pr = requests.get(photo_url, timeout=60, stream=True)
+            pr.raise_for_status()
+            with open(output_path, "wb") as f:
+                for chunk in pr.iter_content(8192): f.write(chunk)
+            size = os.path.getsize(output_path)
+            if size > 50000:
+                print(f"Unsplash photo saved ({size//1024}KB)")
+                return True
+        except Exception as e:
+            print(f"Unsplash failed: {e}")
+    else:
+        print("UNSPLASH_ACCESS_KEY not set — skipping Unsplash (get free key at unsplash.com/developers)")
 
-    # Unsplash source API — free, no key, returns a random relevant photo
-    # orientation=landscape ensures 16:9 compatible image
-    encoded_query = quote(query)
-    unsplash_url = f"https://source.unsplash.com/1280x720/?{encoded_query}"
+    # 2. Pexels API
+    pexels_key = os.environ.get("PEXELS_API_KEY", "")
+    if pexels_key:
+        try:
+            r = requests.get(
+                "https://api.pexels.com/v1/search",
+                params={"query": query, "orientation": "landscape", "size": "large", "per_page": 15},
+                headers={"Authorization": pexels_key},
+                timeout=20,
+            )
+            r.raise_for_status()
+            photos = r.json().get("photos", [])
+            if photos:
+                photo = random.choice(photos[:10])
+                pr = requests.get(photo["src"]["large2x"], timeout=60, stream=True)
+                pr.raise_for_status()
+                with open(output_path, "wb") as f:
+                    for chunk in pr.iter_content(8192): f.write(chunk)
+                size = os.path.getsize(output_path)
+                if size > 50000:
+                    print(f"Pexels photo saved ({size//1024}KB) by {photo.get('photographer','?')}")
+                    return True
+        except Exception as e:
+            print(f"Pexels failed: {e}")
+    else:
+        print("PEXELS_API_KEY not set — skipping Pexels (get free key at pexels.com/api)")
 
-    try:
-        print(f"Fetching Unsplash photo for '{query}'...")
-        resp = requests.get(unsplash_url, timeout=60, stream=True, allow_redirects=True)
-        resp.raise_for_status()
-        with open(output_path, "wb") as f:
-            for chunk in resp.iter_content(8192):
-                f.write(chunk)
-        size = os.path.getsize(output_path)
-        if size > 50000:
-            print(f"Unsplash photo saved: {size//1024}KB")
-            return True
-        else:
-            print(f"Unsplash returned tiny file ({size}B) — falling back to Pollinations")
-    except Exception as e:
-        print(f"Unsplash failed: {e} — falling back to Pollinations")
 
-    # Pollinations fallback (kept as last resort)
+    # 2b. Pixabay API (landscape)
+    pixabay_key = os.environ.get("PIXABAY_API_KEY", "")
+    if pixabay_key:
+        try:
+            r = requests.get(
+                "https://pixabay.com/api/",
+                params={
+                    "key":         pixabay_key,
+                    "q":           query,
+                    "image_type":  "photo",
+                    "orientation": "horizontal",
+                    "min_width":   1280,
+                    "min_height":  720,
+                    "per_page":    15,
+                    "order":       "popular",
+                    "safesearch":  "true",
+                },
+                timeout=20,
+            )
+            r.raise_for_status()
+            hits = r.json().get("hits", [])
+            if hits:
+                hit = random.choice(hits[:10])
+                photo_url = hit.get("largeImageURL") or hit.get("webformatURL")
+                pr = requests.get(photo_url, timeout=60, stream=True)
+                pr.raise_for_status()
+                with open(output_path, "wb") as f:
+                    for chunk in pr.iter_content(8192): f.write(chunk)
+                size = os.path.getsize(output_path)
+                if size > 50000:
+                    print(f"Pixabay landscape saved ({size//1024}KB)")
+                    return True
+        except Exception as e:
+            print(f"Pixabay failed: {e}")
+    else:
+        print("PIXABAY_API_KEY not set — skipping Pixabay")
+
+    # 3. Pollinations last resort
     PROMPTS = {
-        "rain":         "cozy cabin bedroom night, rain on window, warm amber fireplace glow, cinematic, no people, no text, photorealistic",
-        "fireplace":    "stone fireplace roaring fire, mountain lodge night, warm amber, cinematic, no people, no text, photorealistic",
-        "river":        "mountain river night, moonlight on water, pine forest, misty, cinematic, no people, no text, photorealistic",
-        "ocean_waves":  "cliffside cabin stormy ocean night, waves crashing, dark navy, cinematic, no people, no text, photorealistic",
-        "soft_wind":    "forest night moonlight, gentle wind, peaceful, dark green, cinematic, no people, no text, photorealistic",
-        "night_forest": "dark forest midnight, moonlight through trees, fireflies, cinematic, no people, no text, photorealistic",
-        "brown_noise":  "dark study desk night, rain window, warm lamp, cinematic, no people, no text, photorealistic",
-        "thunder":      "thunderstorm cabin night, lightning dark sky, cozy interior, cinematic, no people, no text, photorealistic",
+        "rain":         "cozy cabin bedroom night rain on window warm amber fireplace cinematic no people no text",
+        "fireplace":    "stone fireplace roaring fire mountain lodge night warm amber cinematic no people no text",
+        "river":        "mountain river night moonlight pine forest mist cinematic no people no text",
+        "ocean_waves":  "cliffside cabin stormy ocean night waves crashing dark navy cinematic no people no text",
+        "soft_wind":    "japanese cabin bamboo forest twilight paper lanterns cinematic no people no text",
+        "night_forest": "dark forest midnight moonlight through trees fireflies cinematic no people no text",
+        "brown_noise":  "dark study desk night rain window warm lamp cinematic no people no text",
+        "thunder":      "thunderstorm cabin night lightning dark sky dramatic cinematic no people no text",
     }
-    prompt = PROMPTS.get(primary, f"dark cozy cabin {primary} night, cinematic, no people, no text")
-    prompt += ", masterpiece, 8k, cinematic lighting"
-
+    prompt = PROMPTS.get(primary, f"cozy dark cabin {primary} atmosphere night no people no text")
+    prompt += " masterpiece 8k cinematic lighting photorealistic"
     try:
-        encoded = quote(prompt)
+        from urllib.parse import quote as _q
         seed = int(time.time()) % 999999
-        url = (f"https://image.pollinations.ai/prompt/{encoded}"
+        url = (f"https://image.pollinations.ai/prompt/{_q(prompt)}"
                f"?width=1280&height=720&seed={seed}&model=flux&nologo=true&enhance=true")
-        print("Calling Pollinations.ai as last resort...")
+        print("Pollinations last resort...")
         resp = requests.get(url, timeout=120, stream=True)
         resp.raise_for_status()
         with open(output_path, "wb") as f:
-            for chunk in resp.iter_content(8192):
-                f.write(chunk)
+            for chunk in resp.iter_content(8192): f.write(chunk)
         size = os.path.getsize(output_path)
         if size < 10000:
-            print(f"Pollinations returned tiny file ({size}b)")
             return False
-        print(f"Pollinations image saved: {size//1024}KB")
+        print(f"Pollinations saved: {size//1024}KB")
         return True
     except Exception as e:
         print(f"Pollinations failed: {e}")
         return False
+
+
+# Keep old name as alias so nothing else breaks
+download_pollinations_fallback = download_photo_api_fallback
 
 # Pick image
 image_path = pick_library_image(primary)
@@ -286,7 +365,7 @@ if image_path:
 else:
     # Fallback to Pollinations
     print(f"No library image for {primary} — generating with Pollinations...")
-    success = download_pollinations_fallback(primary, str(BG_IMAGE))
+    success = download_photo_api_fallback(primary, str(BG_IMAGE))
     if not success:
         print("Pollinations failed — no background image available")
         image_path = None
