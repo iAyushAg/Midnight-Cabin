@@ -648,7 +648,7 @@ if SHORT_BG_IMAGE.exists() and KLING_ACCESS_KEY and KLING_SECRET_KEY:
             "image":           img_b64,
             "prompt":          anim_prompt,
             "negative_prompt": NEGATIVE_PROMPT + ", camera pan, camera zoom, camera rotation",
-            "duration":        "8",
+            "duration":        "10",
             "mode":            "std",
         }
 
@@ -662,10 +662,12 @@ if SHORT_BG_IMAGE.exists() and KLING_ACCESS_KEY and KLING_SECRET_KEY:
                 wait = 60 * (2 ** attempt)
                 print(f"Kling rate-limited (429). Retry {attempt+1}/3 in {wait}s...")
                 time.sleep(wait)
-                # Refresh JWT before retry — could be expired by now
                 token = kling_jwt(KLING_ACCESS_KEY, KLING_SECRET_KEY)
                 headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
                 continue
+            if resp.status_code >= 400:
+                # Log the full response body so we can diagnose the error
+                print(f"Kling API error {resp.status_code}: {resp.text[:500]}")
             break
 
         resp.raise_for_status()
