@@ -635,7 +635,9 @@ if SHORT_BG_IMAGE.exists() and KLING_ACCESS_KEY and KLING_SECRET_KEY:
         print(f"Kling vertical task: {task_id}")
 
         start = time.time()
-        while time.time() - start < 300:
+        # Kling v2 Master + 10s duration can take 5-8 minutes
+        # Timeout set to 10 minutes to be safe
+        while time.time() - start < 600:
             time.sleep(8)
             poll = requests.get(f"https://api.klingai.com/v1/videos/image2video/{task_id}",
                                 headers=headers, timeout=30)
@@ -662,6 +664,16 @@ if SHORT_BG_IMAGE.exists() and KLING_ACCESS_KEY and KLING_SECRET_KEY:
 
     except Exception as e:
         print(f"Kling vertical animation failed: {e}")
+        # CRITICAL: delete stale persistent animation so generate_short.py
+        # doesn't reuse the PREVIOUS run's animation for the wrong niche
+        stale_persistent = PERSISTENT_DIR / "bg_short_animated.mp4"
+        if stale_persistent.exists():
+            stale_persistent.unlink()
+            print(f"   Deleted stale persistent animation: {stale_persistent}")
+        stale_app = SHORT_BG_VIDEO
+        if stale_app.exists():
+            stale_app.unlink()
+            print(f"   Deleted stale app animation: {stale_app}")
 else:
     if not (KLING_ACCESS_KEY and KLING_SECRET_KEY):
         print("Kling keys not set — skipping Short animation")

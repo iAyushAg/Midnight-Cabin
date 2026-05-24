@@ -808,24 +808,32 @@ SHORT_VISUAL_META_PATH = os.path.join(PERSISTENT_DIR, "current_short_visual.json
 
 animated_niche = None
 short_visual_is_portrait = False
+short_visual_has_animation = False
 short_visual_niche = None
 
-# Read short visual meta — check niche matches current idea
+# Read short visual meta — check niche matches current idea AND animation succeeded
 try:
     if os.path.exists(SHORT_VISUAL_META_PATH):
         with open(SHORT_VISUAL_META_PATH) as _f: _svm = json.load(_f)
         short_visual_niche = _svm.get("primary") or _svm.get("primary_category")
+        short_visual_has_animation = _svm.get("has_animation", False)
         niche_matches = (short_visual_niche == primary)
-        short_visual_is_portrait = _svm.get("portrait", False) and niche_matches
+        short_visual_is_portrait = _svm.get("portrait", False) and niche_matches and short_visual_has_animation
         if not niche_matches:
             print(f"⚠️  Short visual niche mismatch: stored={short_visual_niche}, current={primary}")
             print(f"   Clearing stale visual assets so correct niche is used...")
-            # Delete stale portrait assets so we don't accidentally use wrong-niche visuals
             for stale in [SHORT_BG_VIDEO_PATH, SHORT_BG_IMAGE_PATH,
                           os.path.join(PERSISTENT_DIR, "bg_short_animated.mp4")]:
                 if os.path.exists(stale):
                     os.remove(stale)
                     print(f"   Removed: {stale}")
+        elif not short_visual_has_animation:
+            print(f"⚠️  Short visual animation FAILED this run — will use still image or library fallback")
+            # Delete any stale animation file that might be sitting on disk from a previous run
+            for stale in [SHORT_BG_VIDEO_PATH, os.path.join(PERSISTENT_DIR, "bg_short_animated.mp4")]:
+                if os.path.exists(stale):
+                    os.remove(stale)
+                    print(f"   Removed stale animation: {stale}")
 except Exception:
     pass
 

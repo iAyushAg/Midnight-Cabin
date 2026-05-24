@@ -360,7 +360,7 @@ def animate_with_kling(image_path, prompt, negative_prompt):
             "dolly shot, tracking shot, handheld camera, "
             "scene transition, cut, fade, dissolve"
         ),
-        "duration": "10",    # 10 seconds
+        "duration": "5",     # 5 seconds
     }
 
     resp = requests.post(
@@ -379,7 +379,7 @@ def animate_with_kling(image_path, prompt, negative_prompt):
     print(f"Kling task submitted: {task_id}")
 
     # Poll for completion
-    max_wait = 300
+    max_wait = 600  # Kling v2 Master + 10s duration needs up to 8 minutes
     start = time.time()
     while time.time() - start < max_wait:
         time.sleep(8)
