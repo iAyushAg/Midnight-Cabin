@@ -620,7 +620,7 @@ if SHORT_BG_IMAGE.exists() and KLING_ACCESS_KEY and KLING_SECRET_KEY:
             "image":           img_b64,
             "prompt":          anim_prompt,
             "negative_prompt": NEGATIVE_PROMPT + ", camera pan, camera zoom, camera rotation",
-            "duration":        "5",
+            "duration":        "10",
         }
 
         resp = requests.post("https://api.klingai.com/v1/videos/image2video",

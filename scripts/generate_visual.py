@@ -360,7 +360,7 @@ def animate_with_kling(image_path, prompt, negative_prompt):
             "dolly shot, tracking shot, handheld camera, "
             "scene transition, cut, fade, dissolve"
         ),
-        "duration": "5",     # 5 seconds
+        "duration": "10",    # 10 seconds
     }
 
     resp = requests.post(
