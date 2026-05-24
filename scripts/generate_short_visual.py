@@ -623,8 +623,22 @@ if SHORT_BG_IMAGE.exists() and KLING_ACCESS_KEY and KLING_SECRET_KEY:
             "duration":        "10",
         }
 
-        resp = requests.post("https://api.klingai.com/v1/videos/image2video",
-                             headers=headers, json=payload, timeout=30)
+        # Submit with retry on 429 (rate limit) — exponential backoff up to 3 attempts
+        # Wait times: 60s, 120s, 240s — total 7 minutes worst case
+        resp = None
+        for attempt in range(3):
+            resp = requests.post("https://api.klingai.com/v1/videos/image2video",
+                                 headers=headers, json=payload, timeout=30)
+            if resp.status_code == 429:
+                wait = 60 * (2 ** attempt)
+                print(f"Kling rate-limited (429). Retry {attempt+1}/3 in {wait}s...")
+                time.sleep(wait)
+                # Refresh JWT before retry — could be expired by now
+                token = kling_jwt(KLING_ACCESS_KEY, KLING_SECRET_KEY)
+                headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+                continue
+            break
+
         resp.raise_for_status()
         result = resp.json()
 
