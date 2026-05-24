@@ -49,7 +49,7 @@ client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 # NICHES + SECONDARY LAYERS
 # ─────────────────────────────────────────────
 NICHES = ["rain", "river", "thunder", "fireplace", "ocean_waves",
-          "soft_wind", "night_forest", "brown_noise"]
+          "soft_wind", "night_forest"]
 
 SECONDARY_BY_PRIMARY = {
     "rain":         ["soft_wind", "thunder", "river"],
@@ -82,6 +82,10 @@ def save_short_rotation(data):
 
 rotation = load_short_rotation()
 queue = rotation.get("queue", [])
+
+# Strip any niches that are no longer in the active NICHES list
+# (e.g. brown_noise was removed)
+queue = [n for n in queue if n in NICHES]
 
 if not queue:
     new_queue = NICHES[:]

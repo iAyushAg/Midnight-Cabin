@@ -33,7 +33,7 @@ DISABLE_FLAGSHIP = os.environ.get("DISABLE_FLAGSHIP", "").lower() in {"1", "true
 
 CONTENT_BUCKETS = [
     "rain", "river", "thunder", "fireplace", "ocean_waves",
-    "soft_wind", "night_forest", "brown_noise"
+    "soft_wind", "night_forest"
 ]
 
 SCENE_LOCATIONS = [
@@ -94,13 +94,8 @@ def pick_unused_scene(recent_scenes):
 
 
 def should_use_brown_noise(primary, recent_items):
-    if primary == "brown_noise":
-        return True
-    if not recent_items:
-        return random.random() < BROWN_NOISE_TARGET_RATIO
-    uses = sum(1 for item in recent_items if "brown_noise" in item.get("sound_layers", []))
-    ratio = uses / max(len(recent_items), 1)
-    return ratio < BROWN_NOISE_TARGET_RATIO
+    # brown_noise removed from rotation — never use as primary or secondary
+    return False
 
 
 def should_make_flagship(history):
