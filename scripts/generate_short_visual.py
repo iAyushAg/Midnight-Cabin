@@ -115,6 +115,22 @@ PORTRAIT_QUERIES = {
     ],
 }
 
+def image_is_bright_enough(image_path: Path, min_brightness: int = 25) -> bool:
+    """Check average brightness of image. Reject if too dark to be usable."""
+    try:
+        from PIL import Image as PILImage
+        import numpy as np
+        with PILImage.open(image_path) as img:
+            # Convert to grayscale and check mean pixel value (0=black, 255=white)
+            gray = img.convert("L").resize((64, 64))  # small for speed
+            brightness = np.array(gray).mean()
+            if brightness < min_brightness:
+                print(f"  ⚠️  {image_path.name} too dark (brightness={brightness:.0f}<{min_brightness}) — skipping")
+                return False
+            return True
+    except Exception:
+        return True  # if check fails, allow the image
+
 # ─────────────────────────────────────────────
 # STEP 1 — CHECK LOCAL PORTRAIT LIBRARY
 # video/library/{primary}/portrait/*.jpg
@@ -127,6 +143,15 @@ def pick_portrait_from_library(primary):
     images = list(portrait_dir.glob("*.jpg")) + list(portrait_dir.glob("*.jpeg")) + list(portrait_dir.glob("*.png"))
     if not images:
         return None
+
+    # Filter out images that are too dark to be usable
+    # night_forest portraits especially can be near-black
+    bright_images = [i for i in images if image_is_bright_enough(i, min_brightness=30)]
+    if not bright_images:
+        print(f"  ⚠️  All {primary} portrait images too dark — falling through to API")
+        return None
+    images = bright_images
+
     used_path = PERSISTENT_DIR / "used_short_images.json"
     used_map = {}
     try:
@@ -614,13 +639,17 @@ if SHORT_BG_IMAGE.exists() and KLING_ACCESS_KEY and KLING_SECRET_KEY:
         with open(str(SHORT_BG_IMAGE), "rb") as f:
             img_b64 = base64.b64encode(f.read()).decode()
 
-        # Kling v2 Master payload — does NOT support cfg_scale or mode parameters
+        # KLING MODEL STRATEGY:
+        # v2-master costs ~5x credits of v1-6. With only 18 credits left,
+        # use v1-6-standard which still has good motion quality.
+        # Switch back to v2-master when credits are replenished.
         payload = {
-            "model_name":      "kling-v2-master",
+            "model_name":      "kling-v1-6",
             "image":           img_b64,
             "prompt":          anim_prompt,
             "negative_prompt": NEGATIVE_PROMPT + ", camera pan, camera zoom, camera rotation",
-            "duration":        "10",
+            "duration":        "8",
+            "mode":            "std",
         }
 
         # Submit with retry on 429 (rate limit) — exponential backoff up to 3 attempts
@@ -703,7 +732,7 @@ meta = {
     "source":            "kling" if animation_success else "static",
     "image_source":      "library_portrait" if image_path else "api_portrait",
     "portrait":          True,
-    "model":             "kling-v2-master" if animation_success else "static",
+    "model":             "kling-v1-6" if animation_success else "static",
 }
 with open(str(SHORT_VISUAL_META), "w") as f:
     json.dump(meta, f, indent=2)
