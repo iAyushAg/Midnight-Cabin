@@ -9,7 +9,14 @@ import requests
 BASE_DIR = Path(__file__).resolve().parent.parent
 PERSISTENT_DIR = Path(os.environ.get("PERSISTENT_DIR", "/data"))
 
-IDEA_PATH = PERSISTENT_DIR / "current_idea.json"
+# CURRENT_IDEA_OVERRIDE lets the short pipeline pass short_idea.json
+# without needing to copy/rename files
+_idea_override = os.environ.get("CURRENT_IDEA_OVERRIDE", "")
+if _idea_override and Path(_idea_override).exists():
+    IDEA_PATH = Path(_idea_override)
+else:
+    IDEA_PATH = PERSISTENT_DIR / "current_idea.json"
+
 CACHE_DIR = BASE_DIR / "audio_samples"
 ATTRIBUTION_PATH = PERSISTENT_DIR / "audio_attributions.json"
 
@@ -27,13 +34,14 @@ MAX_DURATION = 600
 SOUNDS_PER_CATEGORY = 3
 
 SEARCH_TERMS = {
-    "rain": ["soft rain ambience", "rain on window", "gentle rain loop"],
-    "river": ["flowing river ambience", "gentle stream water", "river loop"],
-    "thunder": ["distant thunder rumble", "soft thunder", "thunder ambience"],
-    "wind": ["soft wind ambience", "night wind", "gentle wind"],
-    "soft_wind": ["soft wind ambience", "night wind", "gentle wind"],
-    "fireplace": ["fireplace crackling ambience", "fireplace loop", "warm fire crackle"],
-    "ocean_waves": ["calm ocean waves", "ocean waves ambience", "gentle waves loop"],
+    "rain":         ["soft rain ambience", "rain on window", "gentle rain loop"],
+    "river":        ["flowing river ambience", "gentle stream water", "river loop"],
+    "thunder":      ["distant thunder rain ambience", "thunderstorm loop", "soft thunder rumble"],
+    "wind":         ["soft wind ambience", "night wind", "gentle wind"],
+    "soft_wind":    ["soft wind ambience", "night wind", "gentle wind loop"],
+    "fireplace":    ["fireplace crackling ambience", "fireplace loop", "warm fire crackle"],
+    "ocean_waves":  ["calm ocean waves", "ocean waves ambience", "gentle waves loop"],
+    "night_forest": ["night forest ambience", "forest night crickets", "forest insects night loop"],
 }
 
 # ─────────────────────────────────────────────
@@ -223,15 +231,14 @@ def needs_attribution(license_str):
 PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "")
 
 PIXABAY_SEARCH_TERMS = {
-    "rain": ["rain", "rain ambience", "rainfall"],
-    "river": ["river", "stream water", "creek"],
-    "thunder": ["thunder", "thunderstorm"],
-    "wind": ["wind", "breeze"],
-    "soft_wind": ["wind", "soft wind", "breeze"],
-    "fireplace": ["fireplace", "fire crackling", "campfire"],
-    "ocean_waves": ["ocean waves", "sea waves", "beach waves"],
-    "night_forest": ["forest night", "crickets", "nature night"],
-    "brown_noise": ["brown noise", "white noise"],
+    "rain":         ["rain", "rain ambience", "rainfall"],
+    "river":        ["river", "stream water", "creek"],
+    "thunder":      ["thunder", "thunderstorm", "thunder rain"],
+    "wind":         ["wind", "breeze", "wind nature"],
+    "soft_wind":    ["wind", "soft wind", "breeze"],
+    "fireplace":    ["fireplace", "fire crackling", "campfire"],
+    "ocean_waves":  ["ocean waves", "sea waves", "beach waves"],
+    "night_forest": ["forest night", "crickets night", "nature night insects"],
 }
 
 
@@ -333,12 +340,18 @@ def download_pixabay_sound(sound, category):
 
 def main():
     idea_path = IDEA_PATH if IDEA_PATH.exists() else BASE_DIR / "current_idea.json"
+    if not idea_path.exists():
+        print("No idea file found — skipping audio fetch")
+        return
 
+    print(f"Fetching audio for idea: {idea_path}")
     with open(idea_path, "r") as f:
         idea = json.load(f)
 
     layers = idea.get("sound_layers", [])
-    needed_categories = [l for l in layers if l in SEARCH_TERMS][:3]
+    # Process ALL layers — not just those in SEARCH_TERMS.
+    # Any niche not in SEARCH_TERMS will fall through to Pixabay automatically.
+    needed_categories = [l for l in layers if l and l != "brown_noise"][:3]
 
     print(f"Fetching sounds for categories: {needed_categories}")
 

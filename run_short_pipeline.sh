@@ -69,7 +69,20 @@ fi
 log "Short idea generated: $(python3 -c "import json; d=json.load(open('$PERSISTENT_DIR/short_idea.json')); print(d.get('title','?')[:60])")"
 
 # ─────────────────────────────────────────────────────────
-# STEP 2 — GENERATE SHORT AUDIO
+# STEP 2 — FETCH REAL AUDIO SAMPLES FROM FREESOUND/PIXABAY
+#
+# Reads short_idea.json directly via CURRENT_IDEA_OVERRIDE.
+# Downloads real ambient WAV samples into audio_samples/{niche}/
+# Falls back gracefully if API unavailable or key not set.
+# This is what makes the audio sound like an actual fireplace,
+# forest, rain etc instead of a mathematical approximation.
+# ─────────────────────────────────────────────────────────
+log "Fetching real audio samples..."
+CURRENT_IDEA_OVERRIDE="$PERSISTENT_DIR/short_idea.json" \
+python3 scripts/fetch_freesound.py || log "Audio sample fetch failed — will use procedural fallback"
+
+# ─────────────────────────────────────────────────────────
+# STEP 3 — GENERATE SHORT AUDIO
 #
 # Reads short_idea.json (not current_idea.json).
 # Writes audio/short_audio.wav — the Short's own audio mix.
@@ -85,7 +98,7 @@ if [ ! -f "audio/short_audio.wav" ]; then
 fi
 
 # ─────────────────────────────────────────────────────────
-# STEP 3 — GENERATE SHORT VISUAL (PORTRAIT)
+# STEP 4 — GENERATE SHORT VISUAL (PORTRAIT)
 #
 # Reads short_idea.json (not current_idea.json).
 # Fetches niche-matched portrait photo from Pexels/Unsplash/Pixabay.
@@ -99,7 +112,7 @@ python3 scripts/generate_short_visual.py || {
 }
 
 # ─────────────────────────────────────────────────────────
-# STEP 4 — RENDER THE SHORT
+# STEP 5 — RENDER THE SHORT
 #
 # Reads short_idea.json for hook text / voiceover / niche.
 # Reads audio/short_audio.wav for ambient sound.
@@ -115,7 +128,7 @@ if [ ! -f "output/short.mp4" ]; then
 fi
 
 # ─────────────────────────────────────────────────────────
-# STEP 5 — UPLOAD TO YOUTUBE
+# STEP 6 — UPLOAD TO YOUTUBE
 # ─────────────────────────────────────────────────────────
 log "Uploading Short to YouTube..."
 python3 scripts/upload_short.py || fail "upload_short"
