@@ -7,7 +7,7 @@ name: 🌙 Midnight Cabin — Main Pipeline
 
 on:
   schedule:
-    - cron: "0 16 */2 * *"   # Every 2 days at 9:30 PM IST (16:00 UTC)
+    - cron: "0 16 */3 * *"   # Every 3 days at 9:30 PM IST (16:00 UTC)
   workflow_dispatch:
     inputs:
       skip_delay:

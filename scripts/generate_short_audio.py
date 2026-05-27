@@ -127,7 +127,24 @@ def loop_to_length(audio, target_len, crossfade_sec=4):
 # ─────────────────────────────────────────────
 # PROCEDURAL GENERATORS — fallback when no samples
 # ─────────────────────────────────────────────
+def gen_pink_noise(n):
+    """Pink noise — softer than brown, warmer than white. Used as base for all procedurals."""
+    white = np.random.normal(0, 1, n).astype(np.float64)
+    # Approximate pink noise via IIR filter
+    b0, b1, b2 = 0.0, 0.0, 0.0
+    output = np.zeros(n)
+    for i in range(n):
+        white_val = white[i]
+        b0 = 0.99886 * b0 + white_val * 0.0555179
+        b1 = 0.99332 * b1 + white_val * 0.0750759
+        b2 = 0.96900 * b2 + white_val * 0.1538520
+        output[i] = b0 + b1 + b2 + white_val * 0.5362
+    m = np.max(np.abs(output))
+    if m > 0: output /= m
+    return output.astype(np.float32)
+
 def gen_brown_noise(n):
+    """Kept only as procedural base — NOT used as a niche layer anymore."""
     white = np.random.normal(0, 1, n).astype(np.float64)
     b = np.zeros(n)
     b[0] = white[0]
@@ -136,10 +153,8 @@ def gen_brown_noise(n):
     return b.astype(np.float32)
 
 def gen_rain(n, intensity=0.7):
-    # Brown noise base + filtered white noise bursts
-    base = gen_brown_noise(n) * 0.4
+    base = gen_pink_noise(n) * 0.4
     noise = np.random.normal(0, 1, n).astype(np.float32)
-    # Simple lowpass via cumsum
     lp = np.cumsum(noise) / SAMPLE_RATE * 0.3
     lp = lp - np.mean(lp)
     m = np.max(np.abs(lp))
@@ -147,39 +162,34 @@ def gen_rain(n, intensity=0.7):
     return (base + lp * intensity * 0.6).astype(np.float32)
 
 def gen_fireplace(n):
-    # Pink noise (approx) + low rumble
-    brown = gen_brown_noise(n)
+    pink = gen_pink_noise(n)
     white = np.random.normal(0, 0.3, n).astype(np.float32)
-    # Low rumble
     t = np.linspace(0, DURATION, n)
     rumble = (np.sin(2 * np.pi * 45 * t) * 0.1 +
               np.sin(2 * np.pi * 63 * t) * 0.07).astype(np.float32)
     crackle = (white * (np.random.uniform(0.3, 0.8, n)).astype(np.float32))
-    return (brown * 0.4 + crackle * 0.3 + rumble).astype(np.float32)
+    return (pink * 0.4 + crackle * 0.3 + rumble).astype(np.float32)
 
 def gen_river(n):
-    brown = gen_brown_noise(n)
+    pink = gen_pink_noise(n)
     t = np.linspace(0, DURATION, n)
-    # Babbling variation via low-freq AM
     am = (0.85 + 0.15 * np.sin(2 * np.pi * 0.3 * t)).astype(np.float32)
-    return (brown * am * 0.7).astype(np.float32)
+    return (pink * am * 0.7).astype(np.float32)
 
 def gen_ocean(n):
-    brown = gen_brown_noise(n)
+    pink = gen_pink_noise(n)
     t = np.linspace(0, DURATION, n)
-    # Wave rhythm ~0.2Hz (5s cycle)
     wave = (0.6 + 0.4 * np.sin(2 * np.pi * 0.2 * t)).astype(np.float32)
-    return (brown * wave).astype(np.float32)
+    return (pink * wave).astype(np.float32)
 
 def gen_wind(n):
-    brown = gen_brown_noise(n)
+    pink = gen_pink_noise(n)
     t = np.linspace(0, DURATION, n)
     gust = (0.7 + 0.3 * np.sin(2 * np.pi * 0.08 * t +
              np.random.uniform(0, np.pi))).astype(np.float32)
-    return (brown * gust * 0.6).astype(np.float32)
+    return (pink * gust * 0.6).astype(np.float32)
 
 def gen_forest_night(n):
-    # Wind base + subtle high-freq cricket-like texture
     wind = gen_wind(n) * 0.6
     t = np.linspace(0, DURATION, n)
     cricket = (np.sin(2 * np.pi * 4200 * t) *
@@ -189,7 +199,6 @@ def gen_forest_night(n):
 def gen_thunder(n):
     rain = gen_rain(n, intensity=0.9)
     t = np.linspace(0, DURATION, n)
-    # Thunder rumble at ~30s, ~90s, ~150s
     rumble = np.zeros(n, dtype=np.float32)
     for strike_t in [30, 90, 150]:
         strike_s = int(strike_t * SAMPLE_RATE)
@@ -207,7 +216,6 @@ PROCEDURAL = {
     "ocean_waves":  gen_ocean,
     "soft_wind":    gen_wind,
     "night_forest": gen_forest_night,
-    "brown_noise":  gen_brown_noise,
     "thunder":      gen_thunder,
 }
 
@@ -221,8 +229,7 @@ MIX_VOLUMES = {
     "fireplace":    {"primary": 0.85, "secondary": 0.20},
     "ocean_waves":  {"primary": 0.80, "secondary": 0.25},
     "soft_wind":    {"primary": 0.70, "secondary": 0.35},
-    "night_forest": {"primary": 0.70, "secondary": 0.35},
-    "brown_noise":  {"primary": 0.90, "secondary": 0.20},
+    "night_forest": {"primary": 0.75, "secondary": 0.30},
     "thunder":      {"primary": 0.85, "secondary": 0.20},
 }
 
@@ -236,7 +243,7 @@ def build_layer(niche, target_len):
         audio = loop_to_length(sample, target_len)
     else:
         print(f"No sample for '{niche}' — using procedural generator")
-        gen = PROCEDURAL.get(niche, gen_brown_noise)
+        gen = PROCEDURAL.get(niche, gen_pink_noise)
         audio = gen(target_len)
     return audio[:target_len].astype(np.float32)
 

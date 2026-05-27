@@ -234,7 +234,7 @@ def procedural_rain():
 
 
 def procedural_ocean():
-    base = brown_noise()
+    base = pink_noise()
     swell_1 = 0.5 + 0.5 * np.sin(2 * np.pi * 0.055 * t)
     swell_2 = 0.7 + 0.3 * np.sin(2 * np.pi * 0.087 * t + 1.7)
     foam = smooth_noise(180)
@@ -258,7 +258,7 @@ def thunder_layer():
     for _ in range(max(1, DURATION // 60)):
         start = random.randint(0, max(1, n - SAMPLE_RATE * 8))
         length = random.randint(SAMPLE_RATE * 3, SAMPLE_RATE * 8)
-        rumble = brown_noise()[:length]
+        rumble = pink_noise()[:length]
         env = np.exp(-np.linspace(0, 7, length))
         thunder[start:start + length] += rumble * env
 
@@ -285,10 +285,7 @@ def fireplace_layer():
 
 mix = np.zeros((n, 2))
 
-mix = add_layer(mix, brown_noise(), 0.08, delay=500, width=0.85)
-
-if "brown_noise" in layers:
-    mix = add_layer(mix, brown_noise(), 0.30, delay=450, width=0.85)
+# brown_noise removed — no longer used as a bed layer or niche
 
 if "pink_noise" in layers:
     mix = add_layer(mix, pink_noise(), 0.28, delay=380, width=0.88)

@@ -59,7 +59,6 @@ SECONDARY_BY_PRIMARY = {
     "ocean_waves":  ["soft_wind", "rain", "thunder"],
     "soft_wind":    ["night_forest", "rain", "river"],
     "night_forest": ["soft_wind", "river", "fireplace"],
-    "brown_noise":  ["rain", "soft_wind"],
 }
 
 DURATION_OPTIONS = [480, 480, 480, 600, 600, 720]  # minutes — weighted toward 8h
@@ -193,13 +192,6 @@ SHORT_SCENES = {
         "deep forest with only small sounds",
         "the edge of the forest where the cabin light ends",
     ],
-    "brown_noise": [
-        "a dark study where the rain is heavy outside",
-        "the room where you finally got things done",
-        "late night with something steady playing",
-        "the frequency that quiets a loud brain",
-        "a room where the thoughts slow down",
-    ],
     "thunder": [
         "the cabin window during a violent storm",
         "thunder that shakes the walls at 2am",
@@ -295,7 +287,6 @@ FALLBACK_TITLES = {
     "ocean_waves":  f"Why ocean waves are your brain's oldest sleep signal | {duration_label}",
     "soft_wind":    f"For people who need something playing to fall asleep | {duration_label} | Wind",
     "night_forest": f"Why forest sounds feel like nothing needs you | {duration_label}",
-    "brown_noise":  f"Why your brain stops scanning when brown noise plays | {duration_label}",
     "thunder":      f"Why thunderstorms feel like permission to stop | {duration_label}",
 }
 FALLBACK_HOOKS = {
@@ -305,7 +296,6 @@ FALLBACK_HOOKS = {
     "ocean_waves":  "your body just exhaled",
     "soft_wind":    "nothing needs you right now",
     "night_forest": "the whole world got quiet",
-    "brown_noise":  "your brain stopped scanning",
     "thunder":      "you feel cozy and safe",
 }
 FALLBACK_VOICEOVERS = {
@@ -315,7 +305,6 @@ FALLBACK_VOICEOVERS = {
     "ocean_waves":  "The ocean has been doing this since before you were born. Arrive, fade, return. Your brain recognises it before you do. Save this for tonight.",
     "soft_wind":    "Wind is the sound of nothing needing you right now. Your nervous system knows the difference. Save this for tonight.",
     "night_forest": "The forest is never completely silent. But nothing in it is demanding your attention. That is what makes it feel safe. Save this for tonight.",
-    "brown_noise":  "Your brain is always scanning for threats. Brown noise gives it something consistent to latch onto so it stops. Save this for 3am.",
     "thunder":      "A storm this heavy makes the inside feel even safer. Your body decides you are protected before you think it. Save this for tonight.",
 }
 FALLBACK_THEMES = {
@@ -325,7 +314,6 @@ FALLBACK_THEMES = {
     "ocean_waves":  "Waves on dark coast",
     "soft_wind":    "Wind through pine trees",
     "night_forest": "Deep forest midnight",
-    "brown_noise":  "Dark study late night",
     "thunder":      "Storm on cabin windows",
 }
 

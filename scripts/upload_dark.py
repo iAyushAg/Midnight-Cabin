@@ -73,7 +73,7 @@ original_title = idea.get("title", "")
 
 # Remove existing duration label and add dark screen suffix
 base_title = original_title
-for label in ["10 Hours", "8 Hours", "10 hours", "8 hours"]:
+for label in ["10 Hours", "8 Hours", "10 hours", "8 hours", "1 Hour", "1 hour", "3 Hours", "3 hours"]:
     base_title = base_title.replace(label, "").strip()
 base_title = base_title.strip("| -–").strip()
 

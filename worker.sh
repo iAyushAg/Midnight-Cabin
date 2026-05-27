@@ -29,7 +29,7 @@
 PERSISTENT_DIR="${PERSISTENT_DIR:-/data}"
 mkdir -p "$PERSISTENT_DIR"
 
-MAIN_INTERVAL_HOURS="${MAIN_INTERVAL_HOURS:-48}"
+MAIN_INTERVAL_HOURS="${MAIN_INTERVAL_HOURS:-72}"
 SHORT_INTERVAL_HOURS="${SHORT_INTERVAL_HOURS:-12}"
 MAIN_INTERVAL=$(( MAIN_INTERVAL_HOURS * 3600 ))
 SHORT_INTERVAL=$(( SHORT_INTERVAL_HOURS * 3600 ))
@@ -67,8 +67,8 @@ main_interval() {
 import json, os
 PERSISTENT_DIR = os.environ.get("PERSISTENT_DIR", "/data")
 HISTORY_FILE   = os.path.join(PERSISTENT_DIR, "video_history.json")
-DEFAULT = int(os.environ.get("MAIN_INTERVAL_HOURS", "48")) * 3600
-BOOST   = 24 * 3600
+DEFAULT = int(os.environ.get("MAIN_INTERVAL_HOURS", "72")) * 3600
+BOOST   = 48 * 3600
 
 if not os.path.exists(HISTORY_FILE):
     print(DEFAULT); exit()

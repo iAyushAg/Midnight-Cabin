@@ -59,7 +59,6 @@ SECONDARY_BY_PRIMARY = {
     "ocean_waves": ["soft_wind", "rain"],
     "soft_wind": ["night_forest", "rain", "fireplace"],
     "night_forest": ["soft_wind", "river", "rain"],
-    "brown_noise": ["rain", "fireplace", "soft_wind"],
 }
 
 
@@ -211,7 +210,7 @@ def repair_and_validate_idea(idea, fallback_context):
     # Accept emotional titles that don't use pipe separators — they're intentional.
     # Only reject if: empty, too long, or missing the duration label entirely.
     if not title or len(title) > 95 or duration_label not in title:
-        utility = "Deep Sleep" if suggested_primary != "brown_noise" else "Focus Sound"
+        utility = "Deep Sleep"
         sound_name = suggested_primary.replace("_", " ")
         title = f"Why your brain loves {sound_name} at night | {duration_label}"
 
@@ -356,10 +355,9 @@ print("Scene hint:", scene_hint)
 print("Include brown noise:", include_brown_noise)
 print("Content tier:", content_tier)
 
-# Video length: alternate between 8h and 10h.
-last_duration = history[-1].get("duration_minutes", 480) if history else 480
-next_duration_minutes = 600 if last_duration <= 480 else 480
-duration_label = "10 Hours" if next_duration_minutes == 600 else "8 Hours"
+# Video length: fixed at 1 hour.
+next_duration_minutes = 60
+duration_label = "1 Hour"
 print(f"Next video duration: {duration_label} ({next_duration_minutes} min)")
 
 # Optional YouTube trend inspiration.
@@ -424,11 +422,7 @@ recent_combos_json = json.dumps([
     for v in recent_results[-12:]
 ], indent=2)
 
-brown_noise_rule = (
-    "Include brown_noise only if it genuinely improves the concept. Do NOT force it."
-    if not include_brown_noise
-    else "You MAY include brown_noise, but only as a subtle supporting layer if it fits."
-)
+# brown_noise removed from all content — not used as primary or secondary layer
 
 prompt = f"""
 You are the Idea Agent for a YouTube channel called Midnight Cabin.
@@ -436,7 +430,7 @@ You are the Idea Agent for a YouTube channel called Midnight Cabin.
 The channel creates long sleep, relaxation, and focus soundscape videos. The goal is to build a monetization-ready catalog that feels curated, original, and intentional rather than mass-produced.
 
 Available sound categories:
-- rain, river, thunder, fireplace, ocean_waves, soft_wind, night_forest, brown_noise
+- rain, river, thunder, fireplace, ocean_waves, soft_wind, night_forest
 
 === THEME BLACKOUT ===
 These primary categories were used in the last 30 days. Avoid them as primary unless no alternative exists:
@@ -465,7 +459,7 @@ Include exactly "{duration_label}" in the title.
 Primary category MUST be: {suggested_primary}
 Suggested scene location: {scene_hint}
 Suggested secondary sound: {secondary_hint}
-Brown noise rule: {brown_noise_rule}
+Note: brown_noise is NOT used on this channel. Never include it in sound_layers.
 
 Generate ONE high-quality, unique video idea.
 
@@ -490,7 +484,6 @@ PSYCHOLOGICAL TITLE FORMULA — choose ONE of these three patterns:
 
 GOOD title examples (these patterns):
 - "Why your brain finally quiets down when rain plays | {duration_label}"
-- "Why brown noise feels like someone turned off the anxiety | {duration_label}"
 - "For people who can't sleep without something playing | {duration_label} | Rain"
 - "For people whose brain won't stop replaying conversations at 3am | {duration_label}"
 - "The rain sound that makes your body think it's safe | {duration_label}"
@@ -500,20 +493,18 @@ GOOD title examples (these patterns):
 
 BAD titles (commodity — never use these patterns):
 - "Rain Sounds for Sleeping | 8 Hours | No Music No Talking"  ← generic utility label
-- "Brown Noise for ADHD Focus | 8 Hours | No Interruptions"  ← sounds like every competitor
 - "Fireplace Crackling for Sleep | 8 Hours"  ← zero emotional pull
 - "Midnight Cabin Ambience | 10 Hours"  ← branding over emotion
 
 Rules:
 - Under 90 characters. Include "{duration_label}" exactly.
-- Must contain the sound name (rain/fireplace/brown noise/ocean/river/wind/forest)
+- Must contain the sound name (rain/fireplace/ocean/river/wind/forest/thunder)
 - Must feel like it was written about a specific person at a specific emotional moment
 - Do NOT repeat any recent title.
 - If flagship: go deeper — more specific emotional situation, more curiosity pull
 
 THUMBNAIL TEXT: A 2-4 word EMOTIONAL PHRASE (not just the sound name).
 - GOOD: "BRAIN FINALLY QUIET", "3AM THOUGHTS", "FEELS LIKE SAFE", "ANXIETY OFF"
-- ALSO GOOD: "RAIN SOUNDS", "BROWN NOISE" (these still work as fallback)
 - BAD: "MIDNIGHT CABIN", "DEEP SLEEP", "8 HOURS"
 
 Other rules:
@@ -574,8 +565,6 @@ except Exception as e:
 
 if not idea:
     layer_list = [suggested_primary, secondary_hint]
-    if include_brown_noise and "brown_noise" not in layer_list:
-        layer_list.append("brown_noise")
     title_sound = suggested_primary.replace("_", " ").title()
     _fallback_titles = {
         "rain":         f"Why your brain loves rain playing all night | {duration_label}",
@@ -584,13 +573,12 @@ if not idea:
         "ocean_waves":  f"Why ocean waves are the oldest sleep signal your brain knows | {duration_label}",
         "soft_wind":    f"For people who need something playing to fall asleep | {duration_label} | Wind",
         "night_forest": f"Why forest sounds at night feel like nothing needs you | {duration_label}",
-        "brown_noise":  f"Why your brain stops scanning when brown noise plays | {duration_label}",
         "thunder":      f"Why thunderstorms feel like permission to stop doing things | {duration_label}",
     }
     _fallback_thumbs = {
         "rain": "RAIN SOUNDS", "river": "RIVER SOUNDS", "fireplace": "FIREPLACE",
         "ocean_waves": "OCEAN WAVES", "soft_wind": "WIND SOUNDS",
-        "night_forest": "FOREST NIGHT", "brown_noise": "BROWN NOISE", "thunder": "THUNDERSTORM",
+        "night_forest": "FOREST NIGHT", "thunder": "THUNDERSTORM",
     }
     idea = {
         "theme": f"{title_sound} Sleep Sounds",
