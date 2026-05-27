@@ -1,0 +1,70 @@
+name: 📊 Midnight Cabin — Daily Stats
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # 8:30 AM IST daily
+  workflow_dispatch: {}
+
+concurrency:
+  group: stats
+  cancel-in-progress: false
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore persistent data
+        run: |
+          git config user.name  "midnight-cabin-bot"
+          git config user.email "bot@midnightcabins.com"
+          git fetch origin data 2>/dev/null || true
+          mkdir -p data
+          if git show-ref --quiet refs/remotes/origin/data; then
+            git checkout origin/data -- data/ 2>/dev/null || true
+          fi
+
+      - name: Inject credentials
+        run: |
+          echo '${{ secrets.YOUTUBE_TOKEN_JSON }}'         > data/token.json
+          echo '${{ secrets.YOUTUBE_CLIENT_SECRET_JSON }}' > data/client_secret.json
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect stats
+        env:
+          PERSISTENT_DIR:             data
+          DISCORD_WEBHOOK_URL:        ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN:         ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:           ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_USER:                  ${{ secrets.SMTP_USER }}
+          SMTP_PASS:                  ${{ secrets.SMTP_PASS }}
+          REPORT_EMAIL:               ${{ secrets.REPORT_EMAIL }}
+          YOUTUBE_TOKEN_JSON:         ${{ secrets.YOUTUBE_TOKEN_JSON }}
+          YOUTUBE_CLIENT_SECRET_JSON: ${{ secrets.YOUTUBE_CLIENT_SECRET_JSON }}
+        run: python3 collect_stats.py
+
+      - name: Save persistent data
+        if: always()
+        run: |
+          rm -f data/*.mp4 data/*.wav data/*.jpg data/*.png 2>/dev/null || true
+          git add data/ || true
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "data: persist stats [skip ci]"
+            git push origin HEAD:data --force
+          fi

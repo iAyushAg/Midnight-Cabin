@@ -1,0 +1,147 @@
+name: 🌙 Midnight Cabin — Main Pipeline
+
+# ─────────────────────────────────────────────────────────
+# Runs run_pipeline.sh every 48 hours (same cadence as worker.sh).
+# Persistent data (/data in Railway) lives on the `data` branch.
+# ─────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: "0 16 */2 * *"   # Every 2 days at 9:30 PM IST (16:00 UTC)
+  workflow_dispatch:
+    inputs:
+      skip_delay:
+        description: "Run immediately (equivalent to SKIP_MAIN_DELAY=1)"
+        type: boolean
+        default: true
+      force_video_type:
+        description: "Force video type: main / adhd / dark_screen / study_with_me"
+        required: false
+        default: ""
+      force_flagship:
+        description: "Force flagship video"
+        type: boolean
+        default: false
+
+concurrency:
+  group: main-pipeline
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      # ── CHECKOUT ─────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── RESTORE PERSISTENT DATA ──────────────────────────
+      # The `data` branch acts as the /data volume from Railway.
+      # Stores: video_history.json, token.json, rotation files,
+      #         audio_attributions.json, quality_gate_report.json, etc.
+      - name: Restore persistent data from data branch
+        run: |
+          git config user.name  "midnight-cabin-bot"
+          git config user.email "bot@midnightcabins.com"
+
+          # Fetch data branch (may not exist on first run)
+          git fetch origin data 2>/dev/null || true
+
+          mkdir -p data
+
+          if git show-ref --quiet refs/remotes/origin/data; then
+            # Restore only the data/ directory from that branch
+            git checkout origin/data -- data/ 2>/dev/null || true
+            echo "✅ Persistent data restored"
+            ls -la data/
+          else
+            echo "⚠️  No data branch yet — initialising fresh"
+            echo "[]" > data/video_history.json
+          fi
+
+      # ── INJECT CREDENTIALS ───────────────────────────────
+      # Writes token.json and client_secret.json into data/
+      # which is where PERSISTENT_DIR points during the run.
+      - name: Inject YouTube credentials
+        run: |
+          echo '${{ secrets.YOUTUBE_TOKEN_JSON }}'         > data/token.json
+          echo '${{ secrets.YOUTUBE_CLIENT_SECRET_JSON }}' > data/client_secret.json
+        # Fails silently if secrets not set — pipeline will catch it
+
+      # ── SYSTEM DEPS ──────────────────────────────────────
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            ffmpeg bc fonts-dejavu-core fonts-liberation curl
+
+      # ── PYTHON ───────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # ── RUN PIPELINE ─────────────────────────────────────
+      # Scripts are in the project ROOT (not scripts/ subfolder).
+      # run_pipeline.sh calls: python3 scripts/generate_idea.py etc.
+      # We set PERSISTENT_DIR=data so all state files go to data/
+      - name: Run main pipeline
+        env:
+          PERSISTENT_DIR:             data
+          ANTHROPIC_API_KEY:          ${{ secrets.ANTHROPIC_API_KEY }}
+          REPLICATE_API_TOKEN:        ${{ secrets.REPLICATE_API_TOKEN }}
+          OPENAI_API_KEY:             ${{ secrets.OPENAI_API_KEY }}
+          FREESOUND_API_KEY:          ${{ secrets.FREESOUND_API_KEY }}
+          PEXELS_API_KEY:             ${{ secrets.PEXELS_API_KEY }}
+          KLING_ACCESS_KEY:           ${{ secrets.KLING_ACCESS_KEY }}
+          KLING_SECRET_KEY:           ${{ secrets.KLING_SECRET_KEY }}
+          GOOGLE_TTS_API_KEY:         ${{ secrets.GOOGLE_TTS_API_KEY }}
+          TELEGRAM_BOT_TOKEN:         ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:           ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL:        ${{ secrets.DISCORD_WEBHOOK_URL }}
+          YOUTUBE_TOKEN_JSON:         ${{ secrets.YOUTUBE_TOKEN_JSON }}
+          YOUTUBE_CLIENT_SECRET_JSON: ${{ secrets.YOUTUBE_CLIENT_SECRET_JSON }}
+          INSTAGRAM_ACCESS_TOKEN:     ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID:       ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          CLOUDINARY_URL:             ${{ secrets.CLOUDINARY_URL }}
+          PINTEREST_ACCESS_TOKEN:     ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_BOARD_ID:         ${{ secrets.PINTEREST_BOARD_ID }}
+          # Pipeline control flags
+          SKIP_MAIN_DELAY:            "1"   # Always skip delay in Actions (no 48h idle)
+          FORCE_VIDEO_TYPE:           ${{ github.event.inputs.force_video_type || '' }}
+          FORCE_FLAGSHIP:             ${{ github.event.inputs.force_flagship == 'true' && '1' || '0' }}
+        run: bash run_pipeline.sh
+
+      # ── SAVE PERSISTENT DATA ─────────────────────────────
+      # Commit updated data/ back to the `data` branch after every run.
+      # "always()" ensures we save even if the pipeline failed
+      # (so token refreshes and partial history aren't lost).
+      - name: Save persistent data to data branch
+        if: always()
+        run: |
+          # Remove large binary files that shouldn't be persisted
+          rm -f data/*.mp4 data/*.wav data/*.jpg data/*.png 2>/dev/null || true
+
+          git add data/ || true
+
+          if git diff --cached --quiet; then
+            echo "No data changes to commit"
+          else
+            git commit -m "data: persist after main pipeline [skip ci]"
+            git push origin HEAD:data --force
+            echo "✅ Persistent data saved"
+          fi
+
+      # ── CLEANUP ──────────────────────────────────────────
+      - name: Cleanup render artifacts
+        if: always()
+        run: |
+          rm -rf output/ audio/ video/ audio_samples/ || true

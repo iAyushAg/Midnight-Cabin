@@ -1,0 +1,177 @@
+name: 🎬 Midnight Cabin — Shorts Pipeline
+
+# ─────────────────────────────────────────────────────────
+# Runs run_short_pipeline.sh twice a day.
+# SHORT_INTERVAL_HOURS=12 matches worker.sh default.
+#
+# Schedule: 9 AM IST + 9 PM IST
+# (03:30 UTC + 15:30 UTC)
+#
+# The Short pipeline is 100% independent of the main pipeline —
+# it uses its own short_idea.json, short_niche_rotation.json,
+# short_audio.wav, bg_short_animated.mp4. No shared state.
+# ─────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: "30 3  * * *"   # 9:00 AM IST
+    - cron: "30 9  * * *"   # 3:00 PM IST
+    - cron: "30 15 * * *"   # 9:00 PM IST
+  workflow_dispatch:
+    inputs:
+      hook_style:
+        description: "Hook style override: pov / educational / contrast"
+        required: false
+        default: ""
+      niche:
+        description: "Niche override: rain / fireplace / river / ocean_waves / soft_wind / night_forest / brown_noise / thunder"
+        required: false
+        default: ""
+      challenge:
+        description: "Challenge format? (true/false)"
+        required: false
+        default: "false"
+
+concurrency:
+  group: short-pipeline
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── RESTORE PERSISTENT DATA ──────────────────────────
+      - name: Restore persistent data from data branch
+        run: |
+          git config user.name  "midnight-cabin-bot"
+          git config user.email "bot@midnightcabins.com"
+          git fetch origin data 2>/dev/null || true
+          mkdir -p data
+          if git show-ref --quiet refs/remotes/origin/data; then
+            git checkout origin/data -- data/ 2>/dev/null || true
+            echo "✅ Persistent data restored"
+          else
+            echo "⚠️  No data branch yet"
+            echo "[]" > data/video_history.json
+          fi
+
+      # ── INJECT CREDENTIALS ───────────────────────────────
+      - name: Inject YouTube credentials
+        run: |
+          echo '${{ secrets.YOUTUBE_TOKEN_JSON }}'         > data/token.json
+          echo '${{ secrets.YOUTUBE_CLIENT_SECRET_JSON }}' > data/client_secret.json
+
+      # ── SYSTEM DEPS ──────────────────────────────────────
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            ffmpeg bc fonts-dejavu-core fonts-liberation curl
+
+      # ── PYTHON ───────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # ── HOOK STYLE OVERRIDE ──────────────────────────────
+      # Primes the rotation file so generate_short.py picks
+      # the requested hook style next.
+      - name: Apply hook style override
+        if: ${{ github.event.inputs.hook_style != '' }}
+        run: |
+          STYLE="${{ github.event.inputs.hook_style }}"
+          python3 - << PYEOF
+          import json, os
+          from pathlib import Path
+          style = "$STYLE"
+          prev = {"pov": "contrast", "educational": "pov", "contrast": "educational"}
+          if style in prev:
+              p = Path("data/short_hook_rotation.json")
+              p.parent.mkdir(exist_ok=True)
+              p.write_text(json.dumps({"last_style": prev[style]}))
+              print(f"Hook rotation primed → next style: {style}")
+          PYEOF
+
+      # ── NICHE OVERRIDE ───────────────────────────────────
+      # Primes the Short's own niche rotation so
+      # generate_short_idea.py picks the requested niche next.
+      - name: Apply niche override
+        if: ${{ github.event.inputs.niche != '' }}
+        run: |
+          NICHE="${{ github.event.inputs.niche }}"
+          python3 - << PYEOF
+          import json, random
+          from pathlib import Path
+          niche = "$NICHE"
+          niches = ["rain","river","thunder","fireplace","ocean_waves","soft_wind","night_forest"]
+          if niche in niches:
+              remaining = [n for n in niches if n != niche]
+              random.shuffle(remaining)
+              p = Path("data/short_niche_rotation.json")
+              p.parent.mkdir(exist_ok=True)
+              # Put chosen niche at front of queue
+              p.write_text(json.dumps({"queue": [niche] + remaining, "used": []}))
+              print(f"Niche rotation primed → next niche: {niche}")
+          PYEOF
+
+      # ── RUN SHORT PIPELINE ───────────────────────────────
+      # run_short_pipeline.sh runs:
+      #   1. generate_short_idea.py  → data/short_idea.json
+      #   2. generate_short_audio.py → audio/short_audio.wav
+      #   3. generate_short_visual.py → video/bg_short_animated.mp4
+      #   4. generate_short.py       → output/short.mp4
+      #   5. upload_short.py         → YouTube
+      #   (post_to_socials.py is commented out — uncomment when ready)
+      - name: Run Short pipeline
+        env:
+          PERSISTENT_DIR:             data
+          ANTHROPIC_API_KEY:          ${{ secrets.ANTHROPIC_API_KEY }}
+          REPLICATE_API_TOKEN:        ${{ secrets.REPLICATE_API_TOKEN }}
+          OPENAI_API_KEY:             ${{ secrets.OPENAI_API_KEY }}
+          FREESOUND_API_KEY:          ${{ secrets.FREESOUND_API_KEY }}
+          PEXELS_API_KEY:             ${{ secrets.PEXELS_API_KEY }}
+          KLING_ACCESS_KEY:           ${{ secrets.KLING_ACCESS_KEY }}
+          KLING_SECRET_KEY:           ${{ secrets.KLING_SECRET_KEY }}
+          GOOGLE_TTS_API_KEY:         ${{ secrets.GOOGLE_TTS_API_KEY }}
+          TELEGRAM_BOT_TOKEN:         ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:           ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL:        ${{ secrets.DISCORD_WEBHOOK_URL }}
+          YOUTUBE_TOKEN_JSON:         ${{ secrets.YOUTUBE_TOKEN_JSON }}
+          YOUTUBE_CLIENT_SECRET_JSON: ${{ secrets.YOUTUBE_CLIENT_SECRET_JSON }}
+          INSTAGRAM_ACCESS_TOKEN:     ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_ACCOUNT_ID:       ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+          CLOUDINARY_URL:             ${{ secrets.CLOUDINARY_URL }}
+          PINTEREST_ACCESS_TOKEN:     ${{ secrets.PINTEREST_ACCESS_TOKEN }}
+          PINTEREST_BOARD_ID:         ${{ secrets.PINTEREST_BOARD_ID }}
+          FORCE_CHALLENGE:            ${{ github.event.inputs.challenge || 'false' }}
+        run: bash run_short_pipeline.sh
+
+      # ── SAVE PERSISTENT DATA ─────────────────────────────
+      - name: Save persistent data to data branch
+        if: always()
+        run: |
+          rm -f data/*.mp4 data/*.wav data/*.jpg data/*.png 2>/dev/null || true
+          git add data/ || true
+          if git diff --cached --quiet; then
+            echo "No data changes to commit"
+          else
+            git commit -m "data: persist after short pipeline [skip ci]"
+            git push origin HEAD:data --force
+            echo "✅ Persistent data saved"
+          fi
+
+      - name: Cleanup render artifacts
+        if: always()
+        run: rm -rf output/ audio/ video/ audio_samples/ || true
