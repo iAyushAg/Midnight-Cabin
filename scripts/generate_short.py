@@ -357,7 +357,7 @@ if not hook_text:
 if not voiceover_text:
     voiceover_text = FALLBACK_VOICEOVERS[hook_style].get(
         primary,
-        f"{theme}. {duration_label} of uninterrupted ambient sound. Full version on Midnight Cabin."
+        f"{theme}. {duration_label} of continuous ambient sound. Full version on Midnight Cabin."
     )
 
 cta_text = random.choice([
@@ -1053,6 +1053,8 @@ short_meta = {
     "duration_label": duration_label,
     "hook_style": hook_style,
     "hook_text": hook_text,
+    # Pass the psychologically-crafted title from generate_short_idea.py through to upload_short.py
+    "idea_title": idea.get("title", ""),
     "is_flagship": bool(is_flagship),
     "flagship_short_plan": flagship_shorts,
     "voiceover_text": voiceover_text,
@@ -1064,4 +1066,4 @@ short_meta = {
 with open(os.path.join(PERSISTENT_DIR, "current_short.json"), "w") as f:
     json.dump(short_meta, f, indent=2)
 
-print(f"Short metadata saved — style: {hook_style}, offset: {START_OFFSET}s")
+print(f"Short metadata saved -- style: {hook_style}, offset: {START_OFFSET}s")

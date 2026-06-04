@@ -436,12 +436,12 @@ TITLES = {
 DESCRIPTIONS = {
     "rain": (
         "Drop a 🕯️ if you didn't make it.\n\n"
-        "Full 8-10 hour version on @midnightcabins — no interruptions, no sudden sounds.\n\n"
+        "Full 8-10 hour version on @midnightcabins — no talking, no music, no sudden sounds.\n\n"
         "#rain #sleepsounds #asmr #rainasmr #sleeptok #cozy #cozysounds #ambience"
     ),
     "fireplace": (
         "Drop a 🕯️ if you didn't make it.\n\n"
-        "Full 8-10 hour version on @midnightcabins — no interruptions.\n\n"
+        "Full 8-10 hour version on @midnightcabins — no talking, no music.\n\n"
         "#fireplace #cozy #sleepsounds #asmr #cozysounds #cabin #ambience"
     ),
     "brown_noise": (
@@ -451,7 +451,7 @@ DESCRIPTIONS = {
     ),
     "ocean_waves": (
         "Drop a 🕯️ if you didn't make it.\n\n"
-        "Full 8-10 hour version on @midnightcabins — no interruptions.\n\n"
+        "Full 8-10 hour version on @midnightcabins — no talking, no music.\n\n"
         "#oceansounds #sleepsounds #waves #asmr #relaxing #ambience"
     ),
 }
@@ -459,7 +459,7 @@ DESCRIPTIONS = {
 title = TITLES.get(NICHE, f"Try to fall asleep before this ends #Shorts")
 description = DESCRIPTIONS.get(NICHE, (
     "Drop a 🕯️ if you didn't make it.\n\n"
-    "Full 8-10 hour version on @midnightcabins — no interruptions, no sudden sounds.\n\n"
+    "Full 8-10 hour version on @midnightcabins — no talking, no music, no sudden sounds.\n\n"
     "#sleepsounds #asmr #ambience #relaxing #cozy"
 ))
 

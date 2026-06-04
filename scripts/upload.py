@@ -12,7 +12,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from youtube_utils import (
     generate_chapters, get_full_tags, pin_comment, post_community_update,
     get_sound_attributions, get_ai_disclosure, get_production_note,
-    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists
+    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists,
+    send_upload_checklist
 )
 
 SCOPES = [
@@ -102,13 +103,13 @@ primary_hashtags = {
 }
 sound_hashtags = primary_hashtags.get(primary, "#SleepSounds #AmbientSounds")
 
-description = f"""{primary.replace("_", " ").title()} sounds for sleeping — {duration_label} of uninterrupted audio with no music, no talking, and no sudden sounds.
+description = f"""{primary.replace("_", " ").title()} sounds for sleeping — {duration_label} of pure, steady audio with no music, no talking, and no sudden sounds.
 
 {storyline}
 
 ✅ What you get:
-• {duration_label} of pure {primary.replace("_", " ")} sounds — no mid-roll interruptions
-• No music, no vocals, no sudden volume changes
+• {duration_label} of pure {primary.replace("_", " ")} sounds — no talking, no music
+• No vocals, no sudden volume changes
 • Safe for overnight playback and all-night listening
 • Works with sleep timers and screen-off mode
 
@@ -117,6 +118,9 @@ description = f"""{primary.replace("_", " ").title()} sounds for sleeping — {d
 • Blocking out background noise while studying or working
 • ADHD focus and deep work sessions
 • Meditation, anxiety relief, and unwinding
+
+💛 Support the cabin → https://ko-fi.com/midnightcabins
+🎵 Listen on Spotify → search "Midnight Cabins" on Spotify
 
 🎵 Sound layers: {", ".join(layers)}
 ⏱ Duration: {duration_label}
@@ -132,7 +136,7 @@ description = f"""{primary.replace("_", " ").title()} sounds for sleeping — {d
 
 {sound_credits}
 
-{sound_hashtags} #SleepSounds #DeepSleep #AmbientSounds #SleepMusic #RelaxingSounds #FocusMusic #StudyMusic #NatureSounds #Uninterrupted
+{sound_hashtags} #SleepSounds #DeepSleep #AmbientSounds #SleepMusic #RelaxingSounds #FocusMusic #StudyMusic #NatureSounds
 """
 
 # ─────────────────────────────────────────────
@@ -258,14 +262,4 @@ pin_comment(youtube, video_id, primary, duration_label, layers, idea, "main")
 # Post community tab update
 post_community_update(youtube, video_id, idea["title"], primary, duration_label)
 
-# Send Telegram reminder to pin the comment
-try:
-    import requests as _req
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-    if bot_token and chat_id:
-        msg = f"📌 Pin the comment on your new video:\nhttps://studio.youtube.com/video/{video_id}/comments"
-        _req.post(f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                  data={"chat_id": chat_id, "text": msg}, timeout=10)
-except Exception:
-    pass
+send_upload_checklist(video_id, idea.get("title", ""), "main")

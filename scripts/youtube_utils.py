@@ -100,8 +100,8 @@ def get_full_tags(primary, layers, duration_label, video_type="main"):
         "sleep sounds",
         "ambient sounds",
         "relaxing sounds",
-        "uninterrupted sleep",
-        "no interruptions",
+        "deep sleep sounds",
+        "deep sleep sounds",
         f"{duration_label.lower()} sleep",
         f"{duration_label.lower()} ambient",
     ]
@@ -111,7 +111,7 @@ def get_full_tags(primary, layers, duration_label, video_type="main"):
             "rain sounds",
             "rain sounds for sleep",
             f"rain sounds {duration_label.lower()}",
-            "rain sounds uninterrupted",
+            "rain sounds for sleep",
             "rain sleep sounds",
             "rainy night ambience",
             "rain asmr",
@@ -319,14 +319,14 @@ def pin_comment(youtube, video_id, primary, duration_label, sound_layers, idea=N
             "Welcome to the cabin. 🌧️\n\n"
             "The rain started about an hour ago and hasn't let up. "
             "Door's locked, fire's optional, phone's face-down.\n\n"
-            f"{duration_label} of it. No interruptions. No sudden sounds.\n\n"
+            f"{duration_label} of steady rain. No talking, no music, no sudden sounds.\n\n"
             "Drop a 🕯️ if you're here late tonight."
         ),
         "fireplace": (
             "Welcome to the cabin. 🔥\n\n"
             "Fire's been going since dusk. "
             "There's nowhere you need to be and nothing that can't wait until morning.\n\n"
-            f"{duration_label} of warmth. No interruptions. No sudden sounds.\n\n"
+            f"{duration_label} of warmth. No talking, no music, no sudden sounds.\n\n"
             "Drop a 🕯️ if you're here late tonight."
         ),
         "brown_noise": (
@@ -334,35 +334,35 @@ def pin_comment(youtube, video_id, primary, duration_label, sound_layers, idea=N
             "Brown noise is playing. "
             "If you're here because your brain won't stop — you're in the right place. "
             "Best at low-to-medium volume, filling the room, not filling your ears.\n\n"
-            f"{duration_label}. No interruptions.\n\n"
+            f"{duration_label} of steady focus sound.\n\n"
             "Drop a 🕯️ if you're studying or it's past midnight."
         ),
         "river": (
             "Welcome to the cabin. 🌊\n\n"
             "There's a river about 40 feet from the door. "
             "You can hear it from the bedroom. It's been sounding like this for a thousand years.\n\n"
-            f"{duration_label}. No interruptions. No sudden sounds.\n\n"
+            f"{duration_label} of steady water. No talking, no music.\n\n"
             "Drop a 🕯️ if you're here late tonight."
         ),
         "ocean_waves": (
             "Welcome to the cabin. 🌊\n\n"
             "The cabin is close enough to the water that you can hear it from bed. "
             "Waves arrive, fade, return. They've been doing this since before sleep was a thing people worried about.\n\n"
-            f"{duration_label}. No interruptions.\n\n"
+            f"{duration_label} of steady waves. No talking, no music.\n\n"
             "Drop a 🕯️ if you're here late tonight."
         ),
         "thunder": (
             "Welcome to the cabin. ⛈️\n\n"
             "Storm rolled in around midnight. "
             "Big one. The kind where you're genuinely relieved to be inside.\n\n"
-            f"{duration_label}. No interruptions. No sudden sounds.\n\n"
+            f"{duration_label} of storm sounds. No talking, no music, no sudden sounds.\n\n"
             "Drop a 🕯️ if you're here late tonight."
         ),
         "soft_wind": (
             "Welcome to the cabin. 🍃\n\n"
             "Quiet night. Just wind moving through the trees. "
             "Nothing is waiting, nothing is urgent, nothing needs you until morning.\n\n"
-            f"{duration_label}. No interruptions. No sudden sounds.\n\n"
+            f"{duration_label} of soft wind. No talking, no music.\n\n"
             "Drop a 🕯️ if you're here late tonight."
         ),
         "night_forest": (
@@ -370,7 +370,7 @@ def pin_comment(youtube, video_id, primary, duration_label, sound_layers, idea=N
             "Deep in the forest tonight. "
             "Crickets, wind in the canopy, occasional distant things that are absolutely fine. "
             "Your nervous system knows the difference between forest sounds and danger.\n\n"
-            f"{duration_label}. No interruptions.\n\n"
+            f"{duration_label} of forest ambience. No talking, no music.\n\n"
             "Drop a 🕯️ if you're here late tonight."
         ),
     }
@@ -388,7 +388,7 @@ def pin_comment(youtube, video_id, primary, duration_label, sound_layers, idea=N
         comment = (
             "Welcome to the cabin. 🌙\n\n"
             "Whatever brought you here tonight — you're in the right place. "
-            f"{duration_label} of uninterrupted ambient sound. No sudden sounds. No mid-roll interruptions.\n\n"
+            f"{duration_label} of steady ambient sound. No talking, no music, no sudden sounds.\n\n"
             "Drop a 🕯️ if you're here late tonight."
         )
 
@@ -433,9 +433,9 @@ def post_community_update(youtube, video_id, title, primary, duration_label):
     emoji = emoji_map.get(primary, "🌙")
 
     hooks = [
-        f"{emoji} New {duration_label} ambient just dropped — perfect for tonight. No mid-roll interruptions, no sudden sounds.\n\n▶️ youtu.be/{video_id}",
-        f"New upload: {title}\n\n{emoji} {duration_label} of pure ambient sound. Let it play while you sleep, study, or just decompress.\n\n▶️ youtu.be/{video_id}",
-        f"{emoji} Can't sleep? Can't focus? Try this.\n\n{duration_label} of uninterrupted {primary.replace('_', ' ')} sounds — no mid-roll interruptions.\n\n▶️ youtu.be/{video_id}",
+        f"{emoji} New {duration_label} ambient just dropped — perfect for tonight. No talking, no music, no sudden sounds.\n\n▶️ youtu.be/{video_id}",
+        f"New upload: {title}\n\n{emoji} {duration_label} of pure ambient sound. Let it play while you sleep, study, or just decompress.\n\n▶️ youtu.be/{video_id}\n\n💛 Support the cabin: ko-fi.com/midnightcabins",
+        f"{emoji} Can't sleep? Can't focus? Try this.\n\n{title}\n\n{duration_label} of pure {primary.replace('_', ' ')} sounds — no talking, no music.\n\n▶️ youtu.be/{video_id}",
     ]
     post_text = random.choice(hooks)
 
@@ -453,3 +453,49 @@ def post_community_update(youtube, video_id, title, primary, duration_label):
             print("Community post content sent to Telegram")
         except Exception as e:
             print(f"Telegram community post send failed: {e}")
+
+
+def send_upload_checklist(video_id, title, video_type="main"):
+    """Send a 3-action post-upload checklist to Telegram after every video upload.
+
+    End screens and cards cannot be added via the YouTube Data API -- they require
+    YouTube Studio. This reminder goes to your phone so you can do the 2-min step.
+    """
+    import os, requests as _req
+
+    playlist_hint = {
+        "main":         "Deep Sleep Sounds",
+        "adhd":         "Brown Noise for ADHD and Focus",
+        "dark_screen":  "Deep Sleep Sounds",
+        "study_with_me":"Study Music - No Distraction",
+    }.get(video_type, "Deep Sleep Sounds")
+
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id   = os.environ.get("TELEGRAM_CHAT_ID")
+    if not bot_token or not chat_id:
+        print("Telegram not configured -- skipping upload checklist")
+        return
+
+    msg = (
+        f"New {video_type} video uploaded!\n"
+        f"{title[:60]}\n"
+        f"https://youtu.be/{video_id}\n\n"
+        f"3 ACTIONS (takes 2 min):\n\n"
+        f"1) PIN COMMENT:\n"
+        f"   studio.youtube.com/video/{video_id}/comments\n"
+        f"   Click the cabin welcome comment then Pin\n\n"
+        f"2) ADD END SCREEN (drives subs + watch time):\n"
+        f"   studio.youtube.com/video/{video_id}/edit\n"
+        f"   End screen > Subscribe button + Best video\n\n"
+        f"3) ADD CARD at 20-min mark:\n"
+        f"   Cards > Link to '{playlist_hint}' playlist"
+    )
+    try:
+        _req.post(
+            f"https://api.telegram.org/bot{bot_token}/sendMessage",
+            data={"chat_id": chat_id, "text": msg},
+            timeout=10
+        )
+        print("Upload checklist sent to Telegram")
+    except Exception as e:
+        print(f"Telegram checklist send failed (non-fatal): {e}")

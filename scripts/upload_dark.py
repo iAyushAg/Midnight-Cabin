@@ -11,7 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from youtube_utils import (
     generate_chapters, get_full_tags, pin_comment, post_community_update,
     get_sound_attributions, get_ai_disclosure, get_production_note,
-    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists
+    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists,
+    send_upload_checklist
 )
 
 SCOPES = [
@@ -92,7 +93,7 @@ sound_credits = get_sound_attributions(PERSISTENT_DIR)
 ai_disclosure = get_ai_disclosure()
 description = f"""{theme} — Dark Screen Version
 
-{duration_label} of uninterrupted {primary.replace('_', ' ')} sounds for deep sleep — with a completely black screen so your device won't disturb your rest.
+{duration_label} of continuous {primary.replace('_', ' ')} sounds for deep sleep — with a completely black screen so your device won't disturb your rest.
 
 🌑 Dark screen — no light, no distractions
 🎵 Sound layers: {", ".join(layers)}
@@ -105,7 +106,9 @@ description = f"""{theme} — Dark Screen Version
 • ASMR and relaxation without visual stimulation
 • Overnight background ambience
 
-No mid-roll interruptions. No vocals. No sudden sounds. Screen stays black.
+No talking. No vocals. No sudden sounds. Screen stays black.
+
+💛 Support the cabin → https://ko-fi.com/midnightcabins
 
 🔔 Subscribe for new dark screen soundscapes every few days.
 
@@ -132,7 +135,7 @@ base_tags = [
     f"{duration_label.lower()} sleep",
     "sleep sounds",
     "ambient sounds",
-    "uninterrupted sleep",
+    "deep sleep sounds",
     "screen off sleep sounds",
 ]
 
@@ -235,3 +238,4 @@ print(f"Title: {dark_title}")
 # Pin comment and community post
 pin_comment(youtube, video_id, primary, duration_label, layers, idea, "dark_screen")
 post_community_update(youtube, video_id, dark_title, primary, duration_label)
+send_upload_checklist(video_id, dark_title, "dark_screen")

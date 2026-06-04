@@ -355,9 +355,10 @@ print("Scene hint:", scene_hint)
 print("Include brown noise:", include_brown_noise)
 print("Content tier:", content_tier)
 
-# Video length: fixed at 1 hour.
-next_duration_minutes = 60
-duration_label = "1 Hour"
+# Video length: 8 hours drives 8x the watch time per view toward YPP (4,000 hr threshold).
+# Flagship videos get 10 hours for maximum watch time. Standard = 8 hours.
+next_duration_minutes = 600 if is_flagship else 480
+duration_label = "10 Hours" if next_duration_minutes >= 600 else "8 Hours"
 print(f"Next video duration: {duration_label} ({next_duration_minutes} min)")
 
 # Optional YouTube trend inspiration.
@@ -583,10 +584,10 @@ if not idea:
     idea = {
         "theme": f"{title_sound} Sleep Sounds",
         "title": _fallback_titles.get(suggested_primary, f"{title_sound} Sounds for Sleep | {duration_label} | No Music"),
-        "storyline": f"Steady {suggested_primary.replace('_', ' ')} sounds play uninterrupted for {duration_label}. No music, no talking, no sudden changes.",
+        "storyline": f"Steady {suggested_primary.replace('_', ' ')} sounds play continuously for {duration_label}. No music, no talking, no sudden changes.",
         "unique_angle": f"Targets the search query '{suggested_primary.replace('_', ' ')} sounds for sleeping {duration_label.lower()}'.",
         "first_30_seconds": "Immediate fade-in of the primary sound — no intro, no music, just the sound.",
-        "retention_hook": "Consistent uninterrupted audio with no sudden changes, safe for overnight playback.",
+        "retention_hook": "Consistent, continuous audio with no sudden changes, safe for overnight playback.",
         "sound_layers": layer_list[:3],
         "visual": f"dark cozy cabin interior, {suggested_primary.replace('_', ' ')} visible outside window, warm amber light, no people",
         "thumbnail_text": _fallback_thumbs.get(suggested_primary, title_sound.upper()),

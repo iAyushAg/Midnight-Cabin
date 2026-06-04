@@ -370,7 +370,7 @@ def post_to_pinterest(video_path: Path) -> dict:
 
     description = (
         f"{display_hook} {emoji}\n\n"
-        f"Full {duration_label} version — no interruptions, no sudden sounds.\n\n"
+        f"Full {duration_label} version on @midnightcabins — no talking, no music.\n\n"
         f"Perfect for: {tags_str}"
     )[:500]
 

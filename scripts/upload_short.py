@@ -85,7 +85,7 @@ TITLE_POOLS = {
             "River sounds to calm your mind 🌊 #Shorts",
             "POV: You can hear water outside 🌊 #Shorts",
             "This river sound will slow your thoughts 🌊 #Shorts",
-            "River at midnight — uninterrupted 🌊 #Shorts",
+            "River at midnight 🌊 #Shorts",
             "When flowing water is all you need 🌊 #Shorts",
         ],
         "ocean_waves":  [
@@ -224,7 +224,11 @@ def pick_title(primary, hook_style):
 
     return title
 
-title = pick_title(primary, hook_style)
+# Prefer the psychologically-crafted title from generate_short_idea.py.
+# It uses the proven "Why your brain..." / "For people who..." formula that
+# outperforms generic pool titles 3-10x. Fall back to pick_title() only if missing.
+_idea_title = meta.get("idea_title", "").strip()
+title = _idea_title if _idea_title else pick_title(primary, hook_style)
 
 # ─────────────────────────────────────────────
 # BUILD DESCRIPTION
@@ -233,11 +237,11 @@ description = f"""{hook_text}
 
 60 seconds of {primary.replace('_', ' ')} ambience — {mood} mood.
 
-🎵 Full {duration_label} version on our channel with no ads, no interruptions.
+🎵 Full {duration_label} version on the channel → @midnightcabins
 
-👉 Subscribe @midnightcabins for daily sleep & focus soundscapes.
+💛 Support the cabin → https://ko-fi.com/midnightcabins
 
-#Shorts #SleepSounds #AmbientSounds #{primary.replace('_', '').title()} #Relaxation #{'ADHD' if primary == 'brown_noise' else 'Sleep'}
+#Shorts #SleepSounds #AmbientSounds #{primary.replace('_', '').title()} #Relaxation #{'ADHD' if primary == 'brown_noise' else 'Sleep'} #MidnightCabins
 """
 
 # ─────────────────────────────────────────────
@@ -326,7 +330,11 @@ try:
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
     if bot_token and chat_id:
-        msg = f"🎬 Short uploaded!\nhttps://youtube.com/shorts/{video_id}\n\nTitle: {title}"
+        msg = (
+            f"Short uploaded: {title[:50]}\n"
+            f"https://youtu.be/{video_id}\n\n"
+            f"Support the cabin: ko-fi.com/midnightcabins"
+        )
         _req.post(
             f"https://api.telegram.org/bot{bot_token}/sendMessage",
             data={"chat_id": chat_id, "text": msg},
@@ -335,4 +343,4 @@ try:
 except Exception:
     pass
 
-print(f"Short saved to history: {video_id}")
+print("Short upload complete")

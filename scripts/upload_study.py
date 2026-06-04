@@ -12,7 +12,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from youtube_utils import (
     generate_chapters, get_full_tags, pin_comment, post_community_update,
     get_sound_attributions, get_ai_disclosure, get_production_note,
-    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists
+    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists,
+    send_upload_checklist
 )
 
 SCOPES = [
@@ -189,7 +190,9 @@ description = f"""Study With Me — Pomodoro Timer Edition 🍅
 • Deep work and writing
 • Anyone who struggles to stay on task
 
-No mid-roll interruptions. No vocals. Just you, your work, and the timer.
+No talking. No vocals. Just you, your work, and the timer.
+
+💛 Support the cabin → https://ko-fi.com/midnightcabins
 
 📌 How to use:
 1. Open your study materials
@@ -306,3 +309,4 @@ print(f"Study video saved to history: {video_id}")
 # Pin comment and community post
 pin_comment(youtube, video_id, primary, duration_label, layers, idea, "study_with_me")
 post_community_update(youtube, video_id, study_title, primary, duration_label)
+send_upload_checklist(video_id, study_title, "study_with_me")

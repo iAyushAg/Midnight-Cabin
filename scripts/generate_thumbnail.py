@@ -71,7 +71,7 @@ if not main_text:
     else:
         main_text = "SLEEP\nSOUNDS"
 
-sub_text_a = f"{duration_label} • UNINTERRUPTED"
+sub_text_a = f"{duration_label} • DEEP SLEEP"
 sub_text_b = f"{duration_label} • NO SUDDEN SOUNDS"
 
 # ─────────────────────────────────────────────
@@ -152,13 +152,25 @@ def apply_gradient(img):
 
 
 def get_fonts(big_size=110, small_size=40):
-    try:
-        return (
-            ImageFont.truetype("DejaVuSans-Bold.ttf", big_size),
-            ImageFont.truetype("DejaVuSans-Bold.ttf", small_size),
-        )
-    except Exception:
-        return ImageFont.load_default(), ImageFont.load_default()
+    # Search common font paths for Docker / Linux / macOS / Windows
+    FONT_CANDIDATES = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/liberation/LiberationSans-Bold.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "C:/Windows/Fonts/arialbd.ttf",
+        "DejaVuSans-Bold.ttf",
+    ]
+    for font_path in FONT_CANDIDATES:
+        try:
+            return (
+                ImageFont.truetype(font_path, big_size),
+                ImageFont.truetype(font_path, small_size),
+            )
+        except Exception:
+            continue
+    print("WARNING: No TrueType font found — falling back to default (small text)")
+    return ImageFont.load_default(), ImageFont.load_default()
 
 
 def draw_text_on(img, main_text, sub_text, text_color=(255, 255, 255)):
@@ -195,15 +207,12 @@ img_b = draw_text_on(img_b, main_text, sub_text_b, text_color=(255, 240, 180))
 img_b.save(THUMBNAIL_B_PATH, "JPEG", quality=88, optimize=True)
 print("Thumbnail B created")
 
-# ─────────────────────────────────────────────
-# SET ACTIVE THUMBNAIL
-# ─────────────────────────────────────────────
-import shutil
-
+# Set active thumbnail — copy chosen variant to thumbnail.jpg
 if chosen_variant == "B":
-    shutil.copy(THUMBNAIL_B_PATH, THUMBNAIL_PATH)
-    print("Using Variant B as active thumbnail")
+    import shutil
+    shutil.copy(str(THUMBNAIL_B_PATH), str(THUMBNAIL_PATH))
+    print("Active thumbnail: Variant B (copied to thumbnail.jpg)")
 else:
-    print("Using Variant A as active thumbnail")
+    print("Active thumbnail: Variant A")
 
-print(f"Thumbnail ready: {THUMBNAIL_PATH}")
+print(f"Thumbnail generation complete -- variant {chosen_variant} active")

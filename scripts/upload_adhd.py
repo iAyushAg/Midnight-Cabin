@@ -11,7 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from youtube_utils import (
     generate_chapters, get_full_tags, pin_comment, post_community_update,
     get_sound_attributions, get_ai_disclosure, get_production_note,
-    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists
+    get_quality_summary, get_playlist_ids_for_idea, add_video_to_playlists,
+    send_upload_checklist
 )
 
 SCOPES = [
@@ -72,7 +73,7 @@ sound_label = primary.replace("_", " ").title()
 
 # Pick angle based on primary category
 if primary == "brown_noise":
-    adhd_title = f"Brown Noise for ADHD Focus | {duration_label} No Interruptions"
+    adhd_title = f"Brown Noise for ADHD Focus | {duration_label}"
 elif primary in ["rain", "river", "ocean_waves"]:
     adhd_title = f"{sound_label} + Brown Noise for ADHD | {duration_label} Deep Focus"
 elif primary == "fireplace":
@@ -93,7 +94,7 @@ sound_credits = get_sound_attributions(PERSISTENT_DIR)
 ai_disclosure = get_ai_disclosure()
 description = f"""Brown noise and ambient sound specifically mixed for ADHD focus and deep work.
 
-{duration_label} of uninterrupted sound — no music, no beats, no sudden changes that break concentration.
+{duration_label} of continuous sound — no music, no beats, no sudden changes that break concentration.
 
 🧠 Why brown noise helps ADHD:
 • Masks distracting background sounds
@@ -111,7 +112,9 @@ description = f"""Brown noise and ambient sound specifically mixed for ADHD focu
 • Blocking office or home distractions
 • Reading and writing tasks
 
-No mid-roll interruptions. No vocals. No sudden changes — just steady focus sound.
+No talking. No vocals. No sudden changes — just steady focus sound.
+
+💛 Support the cabin → https://ko-fi.com/midnightcabins
 
 🔔 Subscribe for new ADHD focus sounds every few days.
 
@@ -140,7 +143,7 @@ all_tags = [
     "concentration music",
     "ADHD sounds",
     f"{duration_label.lower()} focus",
-    "no interruptions focus",
+    "brown noise focus",
     "study music no lyrics",
     "brown noise",
     "focus sounds",
@@ -222,3 +225,4 @@ print(f"ADHD video saved to history: {video_id}")
 # Pin comment and community post
 pin_comment(youtube, video_id, primary, duration_label, layers, idea, "adhd")
 post_community_update(youtube, video_id, adhd_title, primary, duration_label)
+send_upload_checklist(video_id, adhd_title, "adhd")
