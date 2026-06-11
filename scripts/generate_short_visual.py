@@ -729,7 +729,7 @@ else:
 # Used when Kling is unavailable or fails — ensures shorts always
 # have animation rather than falling back to a frozen still image.
 # ─────────────────────────────────────────────
-REPLICATE_KEY = os.environ.get("REPLICATE_API_KEY", "")
+REPLICATE_KEY = os.environ.get("REPLICATE_API_TOKEN", "")
 if not animation_success and SHORT_BG_IMAGE.exists() and REPLICATE_KEY:
     try:
         import replicate as _replicate

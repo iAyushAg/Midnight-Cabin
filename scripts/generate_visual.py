@@ -311,7 +311,7 @@ if os.path.exists(str(BG_IMAGE)):
 # ─────────────────────────────────────────────
 KLING_ACCESS_KEY = os.environ.get("KLING_ACCESS_KEY", "")
 KLING_SECRET_KEY = os.environ.get("KLING_SECRET_KEY", "")
-REPLICATE_KEY = os.environ.get("REPLICATE_API_KEY", "")
+REPLICATE_KEY = os.environ.get("REPLICATE_API_TOKEN", "")
 
 def generate_kling_jwt(access_key, secret_key):
     """Generate JWT token for Kling API authentication."""
