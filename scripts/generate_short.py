@@ -875,7 +875,11 @@ elif os.path.exists(SHORT_BG_IMAGE_PATH) and short_visual_niche == primary:
     static_result = subprocess.run([
         "ffmpeg", "-y", "-loop", "1", "-i", SHORT_BG_IMAGE_PATH,
         "-t", str(SHORT_DURATION + 5),
-        "-vf", f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,{color_grade},format=yuv420p",
+        "-vf", (
+            "scale=1134:2016:force_original_aspect_ratio=increase,crop=1134:2016,"
+            "zoompan=z='min(zoom+0.000015,1.035)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30,"
+            "format=yuv420p"
+        ),
         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-r", "30", STATIC_BG
     ], capture_output=True, text=True)
     SHORT_VIDEO_SOURCE = STATIC_BG if static_result.returncode == 0 else None
@@ -904,7 +908,11 @@ else:
         static_result = subprocess.run([
             "ffmpeg", "-y", "-loop", "1", "-i", library_image,
             "-t", str(SHORT_DURATION + 5),
-            "-vf", f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,{color_grade},format=yuv420p",
+            "-vf", (
+                "scale=1134:2016:force_original_aspect_ratio=increase,crop=1134:2016,"
+                "zoompan=z='min(zoom+0.000015,1.035)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30,"
+                "format=yuv420p"
+            ),
             "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-r", "30", STATIC_BG
         ], capture_output=True, text=True)
         SHORT_VIDEO_SOURCE = STATIC_BG if static_result.returncode == 0 else None

@@ -101,7 +101,6 @@ def get_full_tags(primary, layers, duration_label, video_type="main"):
         "ambient sounds",
         "relaxing sounds",
         "deep sleep sounds",
-        "deep sleep sounds",
         f"{duration_label.lower()} sleep",
         f"{duration_label.lower()} ambient",
     ]

@@ -724,6 +724,46 @@ else:
         print("Kling keys not set — skipping Short animation")
 
 # ─────────────────────────────────────────────
+# REPLICATE WAN FALLBACK
+# Mirrors generate_visual.py's animate_with_replicate() pattern.
+# Used when Kling is unavailable or fails — ensures shorts always
+# have animation rather than falling back to a frozen still image.
+# ─────────────────────────────────────────────
+REPLICATE_KEY = os.environ.get("REPLICATE_API_KEY", "")
+if not animation_success and SHORT_BG_IMAGE.exists() and REPLICATE_KEY:
+    try:
+        import replicate as _replicate
+        client = _replicate.Client(api_token=REPLICATE_KEY)
+        print("Trying Replicate WAN as Short animation fallback...")
+        rep_prompt = VERTICAL_ANIMATION_PROMPTS.get(primary, "subtle ambient motion, seamless loop")
+        with open(str(SHORT_BG_IMAGE), "rb") as img_file:
+            rep_output = client.run(
+                "wan-video/wan-2.2-i2v-fast",
+                input={
+                    "image":             img_file,
+                    "prompt":            rep_prompt,
+                    "negative_prompt":   NEGATIVE_PROMPT,
+                    "num_frames":        81,
+                    "frames_per_second": 16,
+                    "resolution":        "480p",
+                    "aspect_ratio":      "9:16",
+                    "sample_shift":      16,
+                    "go_fast":           True,
+                }
+            )
+        video_url = str(rep_output) if not isinstance(rep_output, list) else str(rep_output[0])
+        rep_vid = requests.get(video_url, timeout=120)
+        rep_vid.raise_for_status()
+        with open(str(SHORT_BG_VIDEO), "wb") as f:
+            f.write(rep_vid.content)
+        import shutil as _shutil_rep
+        _shutil_rep.copy(str(SHORT_BG_VIDEO), str(PERSISTENT_DIR / "bg_short_animated.mp4"))
+        print(f"Replicate portrait video saved: {os.path.getsize(str(SHORT_BG_VIDEO))//1024}KB")
+        animation_success = True
+    except Exception as _rep_err:
+        print(f"Replicate Short fallback failed: {_rep_err}")
+
+# ─────────────────────────────────────────────
 # SAVE METADATA
 # ─────────────────────────────────────────────
 meta = {
@@ -731,10 +771,10 @@ meta = {
     "primary_category":  primary,
     "theme":             theme,
     "has_animation":     animation_success,
-    "source":            "kling" if animation_success else "static",
+    "source":            "kling" if (animation_success and KLING_ACCESS_KEY) else "replicate" if animation_success else "static",
     "image_source":      "library_portrait" if image_path else "api_portrait",
     "portrait":          True,
-    "model":             "kling-v1-6" if animation_success else "static",
+    "model":             "kling-v1-6" if (animation_success and KLING_ACCESS_KEY) else "wan-2.2" if animation_success else "static",
 }
 with open(str(SHORT_VISUAL_META), "w") as f:
     json.dump(meta, f, indent=2)
