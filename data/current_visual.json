@@ -1,0 +1,17 @@
+{
+  "primary": "rain",
+  "primary_category": "rain",
+  "theme": "Cozy Rainy Night by the River",
+  "has_animation": false,
+  "motion_style": "ffmpeg_procedural_motion",
+  "source": "static",
+  "image_source": "library",
+  "image_size_bytes": 2206635,
+  "image_width": 1672,
+  "image_height": 941,
+  "min_image_bytes": 50000,
+  "is_dark_screen": false,
+  "model": "static",
+  "prompt": "static locked camera, fixed viewpoint, no camera movement whatsoever, only raindrops streaming down window glass are moving, only fireplace flames flickering with orange and red glow, warm amber firelight gently pulsing on walls and ceiling, all furniture bed pillows books lamps completely frozen and still, perfectly seamless loop, river water rippling",
+  "pollinations_seed": 549075
+}

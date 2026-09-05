@@ -1,0 +1,29 @@
+{
+  "title": "Why ocean waves are your brain's oldest sleep signal | 8 Hours",
+  "hook_text": "your body just exhaled",
+  "voiceover": "The ocean has been doing this since before you were born. Arrive, fade, return. Your brain recognises it before you do. Save this for tonight.",
+  "theme": "Waves on dark coast",
+  "sound_layers": [
+    "ocean_waves",
+    "thunder"
+  ],
+  "audio_strategy": {
+    "primary_category": "ocean_waves",
+    "secondary_category": "thunder",
+    "mood": "calm",
+    "intensity": "low"
+  },
+  "duration_minutes": 480,
+  "thumbnail_text": "BRAIN FINALLY QUIET",
+  "is_flagship": false,
+  "content_tier": "standard",
+  "flagship_package": {
+    "shorts": [],
+    "hero_reason": "Short-only idea"
+  },
+  "storyline": "Waves on dark coast",
+  "unique_angle": "Short-native idea for ocean_waves \u2014 not derived from a long-form video",
+  "visual": "dark ocean_waves night, cabin atmosphere, no people",
+  "created_at": "2026-09-04T13:40:14.565308",
+  "pipeline": "short_only"
+}

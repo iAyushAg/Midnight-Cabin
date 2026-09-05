@@ -1,0 +1,29 @@
+{
+  "title": "Why your brain loves rain playing all night | 8 Hours",
+  "hook_text": "your brain finally stopped",
+  "voiceover": "You know that feeling when the rain starts and your whole body just exhales? That is what this is. Save this for tonight.",
+  "theme": "Rain on cabin window",
+  "sound_layers": [
+    "rain",
+    "thunder"
+  ],
+  "audio_strategy": {
+    "primary_category": "rain",
+    "secondary_category": "thunder",
+    "mood": "calm",
+    "intensity": "low"
+  },
+  "duration_minutes": 480,
+  "thumbnail_text": "BRAIN FINALLY QUIET",
+  "is_flagship": false,
+  "content_tier": "standard",
+  "flagship_package": {
+    "shorts": [],
+    "hero_reason": "Short-only idea"
+  },
+  "storyline": "Rain on cabin window",
+  "unique_angle": "Short-native idea for rain \u2014 not derived from a long-form video",
+  "visual": "dark rain night, cabin atmosphere, no people",
+  "created_at": "2026-09-05T17:26:06.147360",
+  "pipeline": "short_only"
+}

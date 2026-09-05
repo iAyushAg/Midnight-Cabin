@@ -1,0 +1,29 @@
+{
+  "title": "Why thunderstorms feel like permission to stop | 8 Hours",
+  "hook_text": "you feel cozy and safe",
+  "voiceover": "A storm this heavy makes the inside feel even safer. Your body decides you are protected before you think it. Save this for tonight.",
+  "theme": "Storm on cabin windows",
+  "sound_layers": [
+    "thunder",
+    "fireplace"
+  ],
+  "audio_strategy": {
+    "primary_category": "thunder",
+    "secondary_category": "fireplace",
+    "mood": "calm",
+    "intensity": "low"
+  },
+  "duration_minutes": 480,
+  "thumbnail_text": "BRAIN FINALLY QUIET",
+  "is_flagship": false,
+  "content_tier": "standard",
+  "flagship_package": {
+    "shorts": [],
+    "hero_reason": "Short-only idea"
+  },
+  "storyline": "Storm on cabin windows",
+  "unique_angle": "Short-native idea for thunder \u2014 not derived from a long-form video",
+  "visual": "dark thunder night, cabin atmosphere, no people",
+  "created_at": "2026-09-05T07:48:11.307134",
+  "pipeline": "short_only"
+}

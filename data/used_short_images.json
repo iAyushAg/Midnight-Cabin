@@ -1,0 +1,53 @@
+{
+  "fireplace": [
+    "fireplace_1.jpg",
+    "fireplace_6.jpg",
+    "fireplace_8.jpg",
+    "fireplace_4.jpg",
+    "fireplace_3.jpg",
+    "fireplace_5.jpg",
+    "fireplace_2.jpg",
+    "fireplace_7.jpg",
+    "fireplace_9.jpg"
+  ],
+  "night_forest": [
+    "night_forest_5.jpg",
+    "night_forest_2.jpg",
+    "night_forest_9.jpg",
+    "night_forest_7.jpg",
+    "night_forest_10.jpg",
+    "night_forest_11.jpg"
+  ],
+  "river": [
+    "river_5.jpg",
+    "river_9.jpg",
+    "river_2.jpg",
+    "river_4.jpg",
+    "river_8.jpg",
+    "river_7.jpg",
+    "river_1.jpg",
+    "river_6.jpg",
+    "river_3.jpg"
+  ],
+  "rain": [
+    "rain_7.jpg",
+    "rain_5.jpg",
+    "rain_6.jpg",
+    "rain_8.jpg",
+    "rain_3.jpg",
+    "rain_9.jpg",
+    "rain_1.jpg",
+    "rain_4.jpg",
+    "rain_2.jpg",
+    "rain_10.jpg"
+  ],
+  "ocean_waves": [
+    "ocean_4.jpg",
+    "ocean_8.jpg",
+    "ocean_9.jpg",
+    "ocean_2.jpg",
+    "ocean_1.jpg",
+    "ocean_6.jpg",
+    "ocean_3.jpg"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "title": "Why forest sounds feel like nothing needs you | 8 Hours",
+  "hook_text": "the whole world got quiet",
+  "voiceover": "The forest is never completely silent. But nothing in it is demanding your attention. That is what makes it feel safe. Save this for tonight.",
+  "theme": "Deep forest midnight",
+  "sound_layers": [
+    "night_forest",
+    "river"
+  ],
+  "audio_strategy": {
+    "primary_category": "night_forest",
+    "secondary_category": "river",
+    "mood": "calm",
+    "intensity": "low"
+  },
+  "duration_minutes": 480,
+  "thumbnail_text": "BRAIN FINALLY QUIET",
+  "is_flagship": false,
+  "content_tier": "standard",
+  "flagship_package": {
+    "shorts": [],
+    "hero_reason": "Short-only idea"
+  },
+  "storyline": "Deep forest midnight",
+  "unique_angle": "Short-native idea for night_forest \u2014 not derived from a long-form video",
+  "visual": "dark night_forest night, cabin atmosphere, no people",
+  "created_at": "2026-09-03T18:50:30.364284",
+  "pipeline": "short_only"
+}

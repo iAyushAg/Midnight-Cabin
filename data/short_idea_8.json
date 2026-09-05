@@ -1,0 +1,29 @@
+{
+  "title": "Why a fire feels like someone is home | 10 Hours",
+  "hook_text": "you have nowhere to be",
+  "voiceover": "There is something about a fire that makes your brain think someone is home and you are safe. Save this for tonight.",
+  "theme": "Fire in the dark",
+  "sound_layers": [
+    "fireplace",
+    "soft_wind"
+  ],
+  "audio_strategy": {
+    "primary_category": "fireplace",
+    "secondary_category": "soft_wind",
+    "mood": "calm",
+    "intensity": "low"
+  },
+  "duration_minutes": 720,
+  "thumbnail_text": "BRAIN FINALLY QUIET",
+  "is_flagship": false,
+  "content_tier": "standard",
+  "flagship_package": {
+    "shorts": [],
+    "hero_reason": "Short-only idea"
+  },
+  "storyline": "Fire in the dark",
+  "unique_angle": "Short-native idea for fireplace \u2014 not derived from a long-form video",
+  "visual": "dark fireplace night, cabin atmosphere, no people",
+  "created_at": "2026-09-03T08:13:16.134405",
+  "pipeline": "short_only"
+}

@@ -1,0 +1,29 @@
+{
+  "title": "Why a river at midnight quiets a loud brain | 8 Hours",
+  "hook_text": "the overthinking just stopped",
+  "voiceover": "A river does not ask anything of you. It just keeps moving, and your brain finds something to follow that is not your own thoughts. Save this for tonight.",
+  "theme": "River at midnight",
+  "sound_layers": [
+    "river",
+    "night_forest"
+  ],
+  "audio_strategy": {
+    "primary_category": "river",
+    "secondary_category": "night_forest",
+    "mood": "calm",
+    "intensity": "low"
+  },
+  "duration_minutes": 480,
+  "thumbnail_text": "BRAIN FINALLY QUIET",
+  "is_flagship": false,
+  "content_tier": "standard",
+  "flagship_package": {
+    "shorts": [],
+    "hero_reason": "Short-only idea"
+  },
+  "storyline": "River at midnight",
+  "unique_angle": "Short-native idea for river \u2014 not derived from a long-form video",
+  "visual": "dark river night, cabin atmosphere, no people",
+  "created_at": "2026-09-03T13:44:44.816567",
+  "pipeline": "short_only"
+}
