@@ -1,0 +1,10 @@
+{
+  "primary": "soft_wind",
+  "primary_category": "soft_wind",
+  "theme": "Wind through pine trees",
+  "has_animation": false,
+  "source": "static",
+  "image_source": "api_portrait",
+  "portrait": true,
+  "model": "static"
+}
