@@ -1,0 +1,10 @@
+{
+  "primary": "rain",
+  "primary_category": "rain",
+  "theme": "Rain on cabin window",
+  "has_animation": false,
+  "source": "static",
+  "image_source": "library_portrait",
+  "portrait": true,
+  "model": "static"
+}
