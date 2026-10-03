@@ -1,0 +1,10 @@
+{
+  "primary": "fireplace",
+  "primary_category": "fireplace",
+  "theme": "Fire in the dark",
+  "has_animation": false,
+  "source": "static",
+  "image_source": "library_portrait",
+  "portrait": true,
+  "model": "static"
+}
