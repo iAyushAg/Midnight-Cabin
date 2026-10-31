@@ -1,0 +1,29 @@
+{
+  "queue": [
+    "river",
+    "soft_wind",
+    "night_forest"
+  ],
+  "used": [
+    "soft_wind",
+    "river",
+    "rain",
+    "thunder",
+    "fireplace",
+    "night_forest",
+    "soft_wind",
+    "river",
+    "ocean_waves",
+    "thunder",
+    "ocean_waves",
+    "rain",
+    "river",
+    "soft_wind",
+    "fireplace",
+    "night_forest",
+    "ocean_waves",
+    "rain",
+    "thunder",
+    "fireplace"
+  ]
+}
