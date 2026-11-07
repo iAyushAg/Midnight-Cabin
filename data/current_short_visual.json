@@ -1,0 +1,10 @@
+{
+  "primary": "thunder",
+  "primary_category": "thunder",
+  "theme": "Storm on cabin windows",
+  "has_animation": false,
+  "source": "static",
+  "image_source": "api_portrait",
+  "portrait": true,
+  "model": "static"
+}
