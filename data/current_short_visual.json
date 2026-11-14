@@ -1,0 +1,10 @@
+{
+  "primary": "night_forest",
+  "primary_category": "night_forest",
+  "theme": "Deep forest midnight",
+  "has_animation": false,
+  "source": "static",
+  "image_source": "library_portrait",
+  "portrait": true,
+  "model": "static"
+}
