@@ -1,0 +1,10 @@
+{
+  "primary": "river",
+  "primary_category": "river",
+  "theme": "River at midnight",
+  "has_animation": false,
+  "source": "static",
+  "image_source": "library_portrait",
+  "portrait": true,
+  "model": "static"
+}
